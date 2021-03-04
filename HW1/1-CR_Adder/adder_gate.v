@@ -29,11 +29,11 @@ module FA(Cin, a, b, Cout, S);
     
     wire aXb, aAb, w1;
 
-    xor XO1(aXb, a, b);
-    xor XO2(S, Cin, aXb);
-    and AN1(aAb, a, b);
-    and AN2(w1, Cin, aXb);
-    or  OR1(Cout, aAb, w1);
+    xor #1 XO1(aXb, a, b);
+    xor #1 XO2(S, Cin, aXb);
+    and #1 AN1(aAb, a, b);
+    and #1 AN2(w1, Cin, aXb);
+    or  #1 OR1(Cout, aAb, w1);
 
 
 endmodule
