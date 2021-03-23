@@ -55,7 +55,6 @@ always@(*) begin
             3'b100: data_x_w = r4_r;
             3'b101: data_x_w = r5_r;
             3'b110: data_x_w = r6_r;
-
             3'b111: data_x_w = r7_r;
         endcase
         case (RY)

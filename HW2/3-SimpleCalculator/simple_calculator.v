@@ -21,9 +21,32 @@ module simple_calculator(
     output       Carry;
 
 // declaration of wire/reg
-    
+    wire [7:0] out;
 // submodule instantiation
-  
+register_file REG(
+    .Clk(Clk),
+    .WEN(WEN),
+    .RW(RW),
+    .busW(out),
+    .RX(RX),
+    .RY(RY),
+    .busX(),
+    .busY()
+);
 
+alu_assign ALU(
+    .ctrl(Ctrl),
+    .x(),
+    .y(),
+    .carry(),
+    .out(out)
+);
 
+always @(*) begin
+    
+end
+
+always @(posedge Clk) begin
+    
+end
 endmodule
