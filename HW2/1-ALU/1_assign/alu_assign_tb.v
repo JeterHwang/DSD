@@ -36,6 +36,30 @@ module alu_assign_tb;
         if( out == 8'b1111_1111 ) $display( "PASS --- 0100 boolean not" );
         else $display( "FAIL --- 0100 boolean not" );
         
+        x = 8'd4;
+        y = 8'd2;
+        // 0010 Bitwise And
+        ctrl = 4'b0010;
+        
+        #(`HCYCLE);
+        if( out == 8'b1111_1111 ) $display( "PASS --- 0100 boolean not" );
+        else $display( "FAIL --- 0100 boolean not" );
+
+        #(`HCYCLE);
+        if( out == 8'b1111_1111 ) $display( "PASS --- 0100 boolean not" );
+        else $display( "FAIL --- 0100 boolean not" );
+
+        #(`HCYCLE);
+        if( out == 8'b1111_1111 ) $display( "PASS --- 0100 boolean not" );
+        else $display( "FAIL --- 0100 boolean not" );
+
+        #(`HCYCLE);
+        if( out == 8'b1111_1111 ) $display( "PASS --- 0100 boolean not" );
+        else $display( "FAIL --- 0100 boolean not" );
+
+        #(`HCYCLE);
+        if( out == 8'b1111_1111 ) $display( "PASS --- 0100 boolean not" );
+        else $display( "FAIL --- 0100 boolean not" );
         // finish tb
         #(`CYCLE) $finish;
     end
