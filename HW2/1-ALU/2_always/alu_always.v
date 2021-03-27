@@ -17,6 +17,9 @@ module alu_always(
     reg signed [7:0] out_o;
     reg carry_o;
 
+    assign out      = out_o;
+    assign carry    = carry_o;
+
     always @(*) begin
         out_o     = 8'd0;
         carry_o   = 1'b0;
