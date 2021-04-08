@@ -22,4 +22,33 @@ module CHIP(clk,
     output [31:0] mem_addr_I ;  // the fetching address of next instruction
     input  [31:0] mem_rdata_I;  // instruction reading from I-mem
     
+    // control input 
+    wire jalr, jal, branch, memread, memtoreg, memwrite, alusrc, regwrite;
+    wire [3:0] aluop;
+
+    // register file
+    
+
+
+    always@(*) begin
+        
+    end
+
+    
+endmodule
+
+module control();
+    
+endmodule
+
+module register();
+    
+endmodule
+
+module ALU();
+    
+endmodule
+
+module ALU_control();
+    
 endmodule
