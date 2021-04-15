@@ -32,7 +32,7 @@ module CHIP(clk,
 	reg    [31:2] mem_addr_D_r, mem_addr_D_w;
 	reg    [31:0] mem_wdata_D_r, mem_wdata_D_w;
 	reg    [31:2] mem_addr_I_r, mem_addr_I_w; 
-	
+	reg    [31:2] mem_addr;
 	// reg
 	reg    [31:0] re_r [0:31]         ; // 32 registers 32 bits each
 	reg    [31:0] re_w [0:31]         ;
@@ -141,33 +141,23 @@ always@(*) begin  // deal with immediate
 end
 
 always@(*) begin
-    if (instruction_format[0]) begin // UJ type
-		mem_wen_D_w     = 1'b0;
-		mem_addr_D_w    = 30'b0;
-		mem_wdata_D_w   = 32'b0;
-	end
-	else if (instruction_format[1]) begin  // SB type
-		mem_wen_D_w     = 1'b0;
-		mem_addr_D_w    = 30'b0;
-		mem_wdata_D_w   = 32'b0;
-	end
-	else if (instruction_format[2]) begin  // S type
+    if(instruction_format[2]) begin
 		mem_wen_D_w           = 1'b1;
-		mem_addr_D_w          = re_r[real_instruction[19:15]][31:2] + imm[31:2];
+		mem_addr_D_w    	  = re_r[real_instruction[19:15]][31:2] + imm[31:2];
 		mem_wdata_D_w[7:0]    = re_r[real_instruction[24:20]][31:24];
 		mem_wdata_D_w[15:8]   = re_r[real_instruction[24:20]][23:16];
 		mem_wdata_D_w[23:16]  = re_r[real_instruction[24:20]][15:8];
 		mem_wdata_D_w[31:24]  = re_r[real_instruction[24:20]][7:0];
 	end
-	else if (instruction_format[3]) begin  // I type
+	else if(instruction_format[3]) begin
 		mem_wen_D_w     = 1'b0;
-		mem_addr_D_w    = re_r[real_instruction[19:15]][31:2] + imm[31:2];
 		mem_wdata_D_w   = 32'b0;
+		mem_addr_D_w    = re_r[real_instruction[19:15]][31:2] + imm[31:2];
 	end
 	else begin
 		mem_wen_D_w     = 1'b0;
-		mem_addr_D_w    = 30'b0;
 		mem_wdata_D_w   = 32'b0;
+		mem_addr_D_w    = 30'b0;
 	end
 end  
 
@@ -175,27 +165,36 @@ always @(*) begin
     for(i = 0; i < 32; i = i + 1) begin
         re_w[i] = re_r[i];
     end
-    if (instruction_format[0]) begin  // UJ type
-		// jal
-        mem_addr_I_w                    = mem_addr_I_r + imm[31:2];
-		re_w[real_instruction[11:7]]    = {mem_addr_I_r + 1'b1, 2'b00};
+	mem_addr = mem_addr_I_r + 1'b1;
+	/////////////// instruction memory address /////////////
+    if (instruction_format[0]) begin
+		mem_addr_I_w                    = mem_addr_I_r + imm[31:2];
 	end
-	else if (instruction_format[1]) begin  // SB type
-		// beq
-        if (re_r[real_instruction[19:15]] == re_r[real_instruction[24:20]]) begin
-		    mem_addr_I_w = mem_addr_I_r + imm[31:2];
-		end
-		else begin
-		    mem_addr_I_w = mem_addr_I_r + 1'b1;
-		end
+	else if(instruction_format[1]) begin
+		if(re_r[real_instruction[19:15]] == re_r[real_instruction[24:20]])
+			mem_addr_I_w = mem_addr_I_r + imm[31:2];
+		else
+			mem_addr_I_w = mem_addr;
+	end
+	else if(instruction_format[3]) begin
+		if(instruction_type[9])
+			mem_addr_I_w = re_r[real_instruction[19:15]][31:2] + imm[31:2];
+		else
+			mem_addr_I_w = mem_addr;	
+	end
+	else begin
+		mem_addr_I_w = mem_addr;
+	end
+
+	/////////////// register //////////////////
+	if (instruction_format[0]) begin  // UJ type
+		re_w[real_instruction[11:7]]    = {mem_addr, 2'b00};
 	end
 	else if (instruction_format[3]) begin  // I type
 		if (instruction_type[9]) begin  // jalr
-			mem_addr_I_w = re_r[real_instruction[19:15]][31:2] + imm[31:2];
-			re_w[real_instruction[11:7]] = {32'b0, mem_addr_I_r + 1'b1, 2'b0};
+			re_w[real_instruction[11:7]] = {32'b0, mem_addr, 2'b0};
 		end
 		else begin  // lw
-			mem_addr_I_w = mem_addr_I_r + 1'b1;
 			re_w[real_instruction[11:7]][7:0] = mem_rdata_D[31:24];
 			re_w[real_instruction[11:7]][15:8] = mem_rdata_D[23:16];
 			re_w[real_instruction[11:7]][23:16] = mem_rdata_D[15:8];
@@ -203,7 +202,6 @@ always @(*) begin
 		end
 	end
 	else if (instruction_format[4]) begin  // R type
-		mem_addr_I_w = mem_addr_I_r + 1'b1;
 		if (instruction_type[0]) begin  // add
 			re_w[real_instruction[11:7]] = re_r[real_instruction[19:15]] + re_r[real_instruction[24:20]];
 		end
@@ -219,9 +217,6 @@ always @(*) begin
 		else begin  // and
 			re_w[real_instruction[11:7]] = re_r[real_instruction[19:15]] & re_r[real_instruction[24:20]];
 		end
-	end
-	else begin
-		mem_addr_I_w = mem_addr_I_r + 1'b1;
 	end
 end
 
