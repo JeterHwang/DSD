@@ -28,9 +28,9 @@ module CHIP(clk,
 	reg    [ 4:0] instruction_format;
 	reg    [31:0] imm               ; // immediate field
 	
-	reg    mem_wen_D_r, mem_wen_D_w ;
-	reg    [31:2] mem_addr_D_r, mem_addr_D_w;
-	reg    [31:0] mem_wdata_D_r, mem_wdata_D_w;
+	reg    mem_wen_D_w ;
+	reg    [31:2] mem_addr_D_w;
+	reg    [31:0] mem_wdata_D_w;
 	reg    [31:2] mem_addr_I_r, mem_addr_I_w; 
 	reg    [31:2] mem_addr;
 	// reg
@@ -51,52 +51,48 @@ always@(*) begin
     real_instruction[15:8]      = mem_rdata_I[23:16];
     real_instruction[7:0]       = mem_rdata_I[31:24];
 
-    if (real_instruction[6]) begin
-		if (real_instruction[3]) begin       // jal
-			instruction_type = 10'b0100000000;
-			instruction_format = 5'b00001;
+	if(real_instruction[4]) begin // R type
+		instruction_format = 5'b10000;
+		if(real_instruction[12]) begin // and
+			instruction_type = 10'b0000000100;
 		end
-		else if (real_instruction[2]) begin  // jalr
+		else if(real_instruction[14]) begin // or
+			instruction_type = 10'b0000001000;
+		end
+		else if(real_instruction[13]) begin // slt
+			instruction_type = 10'b0000010000;
+		end
+		else if(real_instruction[30]) begin // sub
+			instruction_type = 10'b0000000010;
+		end
+		else begin // add
+			instruction_type = 10'b0000000001;
+		end
+	end
+	else if(real_instruction[3]) begin // UJ type
+		instruction_format = 5'b00001;
+		instruction_type = 10'b0100000000;
+	end
+	else if(real_instruction[6]) begin
+		if(real_instruction[2]) begin // jalr
 			instruction_type = 10'b1000000000;
 			instruction_format = 5'b01000;
 		end
-		else begin                           // beq
+		else begin // beq
 			instruction_format = 5'b00010;
 			instruction_type = 10'b0010000000;
-		end 
-	end
-	else if (real_instruction[4]) begin
-		instruction_format = 5'b10000;
-		if (real_instruction[14]) begin
-			if (real_instruction[12]) begin
-				instruction_type = 10'b0000000100;  // and
-			end
-			else begin
-				instruction_type = 10'b0000001000;  // or
-			end
-		end
-		else begin
-			if (real_instruction[13]) begin
-				instruction_type = 10'b0000010000;      // slt
-			end
-			else begin
-				if (real_instruction[30]) begin     // sub
-					instruction_type = 10'b0000000010;
-				end
-				else begin                          // add
-					instruction_type = 10'b0000000001;
-				end
-			end
 		end
 	end
-	else if (real_instruction[5]) begin  // sw
-		instruction_type = 10'b0001000000;
-		instruction_format = 5'b00100;
+	else begin
+		if(real_instruction[5]) begin // sw
+			instruction_type = 10'b0001000000;
+			instruction_format = 5'b00100;
+		end
+		else begin // lw
+			instruction_type = 10'b0000100000;
+			instruction_format = 5'b01000;
+		end
 	end
-    else begin                           // lw
-        instruction_type = 10'b0000100000;
-		instruction_format = 5'b01000;
-    end     
 end
 
 always@(*) begin  // deal with immediate
@@ -227,18 +223,12 @@ always @(posedge clk) begin
             re_r[i] <= 32'd0;
         end
         mem_addr_I_r    <= 30'd0;
-        mem_addr_D_r    <= 30'd0;
-        mem_wdata_D_r   <= 32'd0;
-        mem_wen_D_r     <= 32'd0;
 	end
     else begin
         for(i = 1; i < 32; i = i + 1) begin
             re_r[i] <= re_w[i];
         end
         mem_addr_I_r    <= mem_addr_I_w;
-        mem_addr_D_r    <= mem_addr_D_w;
-        mem_wdata_D_r   <= mem_wdata_D_w;
-        mem_wen_D_r     <= mem_wen_D_w;
     end
 end
 
