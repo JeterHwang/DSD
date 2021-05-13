@@ -27,12 +27,13 @@ module CHIP(clk,
 	reg    [ 9:0] instruction_type  ;
 	reg    [ 4:0] instruction_format;
 	reg    [31:0] imm               ; // immediate field
-	
-	reg    mem_wen_D_w ;
-	reg    [31:2] mem_addr_D_w;
-	reg    [31:0] mem_wdata_D_w;
-	reg    [31:2] mem_addr_I_r, mem_addr_I_w; 
 	reg    [31:2] mem_addr;
+
+	reg    mem_wen_D_r, mem_wen_D_w ;
+	reg    [31:2] mem_addr_D_r, mem_addr_D_w;
+	reg    [31:0] mem_wdata_D_r, mem_wdata_D_w;
+	reg    [31:2] mem_addr_I_r, mem_addr_I_w; 
+	
 	// reg
 	reg    [31:0] re_r [0:31]         ; // 32 registers 32 bits each
 	reg    [31:0] re_w [0:31]         ;
@@ -45,7 +46,7 @@ module CHIP(clk,
     assign mem_addr_I       = {mem_addr_I_r, 2'b00};
 
 always@(*) begin
-    // rearrange instruction
+    // rearrange instruction2
     real_instruction[31:24]     = mem_rdata_I[7:0];
     real_instruction[23:16]     = mem_rdata_I[15:8];
     real_instruction[15:8]      = mem_rdata_I[23:16];
