@@ -63,6 +63,9 @@ module cache(
     reg [31:0]  proc_rdata_r, proc_rdata_w;
     reg         proc_stall_r, proc_stall_w; 
 
+    reg [blockSize - 1 : 0] write_buffer_data;
+    reg [27:0]              write_buffer_addr;
+    
     integer i;
 
     // ===== wires =====
@@ -78,8 +81,8 @@ module cache(
     assign mem_addr     = mem_addr_w;
     assign mem_wdata    = mem_wdata_w;
 
-    assign proc_stall   = proc_stall_r;
-    assign proc_rdata   = proc_rdata_r;
+    assign proc_stall   = proc_stall_w;
+    assign proc_rdata   = proc_rdata_w;
 
 //==== combinational circuit ==============================
 always @(*) begin
@@ -113,7 +116,7 @@ always @(*) begin
                         store_w[block_id][31:0] = proc_wdata;
                     else if(block_offset == 2'd1)
                         store_w[block_id][63:32] = proc_wdata;
-                    else if(block_offset == 2'd1)
+                    else if(block_offset == 2'd2)
                         store_w[block_id][95:64] = proc_wdata;
                     else
                         store_w[block_id][127:96] = proc_wdata;
@@ -143,7 +146,7 @@ always @(*) begin
                         store_w[block_id][31:0]     = mem_rdata[31:0];
                         store_w[block_id][127:64]   = mem_rdata[127:64];
                     end
-                    else if(block_offset == 2'd1) begin
+                    else if(block_offset == 2'd2) begin
                         store_w[block_id][95:64]    = proc_wdata;
                         store_w[block_id][63:0]     = mem_rdata[63:0];
                         store_w[block_id][127:96]   = mem_rdata[127:96];
@@ -157,41 +160,24 @@ always @(*) begin
         end
     endcase
 end
-// ========== dirty bit ============ //
-always @(*) begin
-    for(i = 0; i < blockNum; i = i + 1)
-        
-    case (state_r)
-        S_IDLE: begin
-            if((proc_read || proc_write) && hit)
-                dirty_w[block_id]   = 1'b1;
-        end
-        S_ALLOCATE: begin
-            if(mem_ready) begin
-                if(proc_read)
-                    dirty_w[block_id]   = 1'b0;
-                else
-                    dirty_w[block_id]   = 1'b1;
-            end    
-        end
-    endcase
-end
 // ========== valid bit ============ //
 always @(*) begin
     for(i = 0; i < blockNum; i = i + 1) begin
         valid_w[i] = valid_r[i];
         dirty_w[i] = dirty_r[i];
+        tag_w[i] = tag_r[i];
     end
     case (state_r)
         S_IDLE: begin
             if(proc_write && hit)
                 dirty_w[block_id]   = 1'b1;
-            if((proc_read || proc_write) && !hit)
+            if((proc_read || proc_write) && !hit) // read/write miss
                 valid_w[block_id]   = 1'b0;  
         end
         S_ALLOCATE: begin
             if(mem_ready) begin
                 valid_w[block_id]   = 1'b1;
+                tag_w[block_id]     = tag_field;
                 if(proc_read)
                     dirty_w[block_id]   = 1'b0;
                 else
@@ -204,12 +190,12 @@ end
 always @(*) begin
     case (state_r)
         S_IDLE: begin
-            if((proc_read || proc_write) && !hit && !dirty) begin
+            if((proc_read || proc_write) && !hit) begin
                 if(dirty) begin
                     mem_write_w         = 1'b1;
                     mem_wdata_w         = store_r[block_id];
                     mem_read_w          = 1'b0;
-                    mem_addr_w          = proc_addr[29:2];
+                    mem_addr_w          = {tag_r[block_id], block_id};
                 end
                 else begin
                     mem_write_w         = 1'b0;
@@ -317,11 +303,12 @@ end
 always@( posedge clk ) begin
     if( proc_reset ) begin
         for(i = 0; i < blockNum; i = i + 1) begin
-            store_r[i]  <= {blockSize{128'd0}};
-            tag_r[i]    <= {blockSize{25'd0}};
-            valid_r[i]  <= {blockSize{1'b0}};
-            dirty_r[i]  <= {blockSize{1'b0}};
+            store_r[i]  <= 128'd0;
+            tag_r[i]    <= 25'd0;
+            valid_r[i]  <= 1'b0;
+            dirty_r[i]  <= 1'b0;
         end
+        state_r         <= S_IDLE;
         mem_read_r      <= 1'b0;
         mem_write_r     <= 1'b0;
         mem_wdata_r     <= 128'd0;
@@ -336,6 +323,7 @@ always@( posedge clk ) begin
             valid_r[i]  <= valid_w[i];
             dirty_r[i]  <= dirty_w[i];
         end
+        state_r         <= state_w;
         mem_read_r      <= mem_read_w;
         mem_write_r     <= mem_write_w;
         mem_wdata_r     <= mem_wdata_w;
