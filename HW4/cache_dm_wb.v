@@ -35,7 +35,7 @@ module cache(
     parameter blockNum      = 8;
 
     parameter S_IDLE        = 2'd0;
-    parameter S_COMP        = 2'd1;
+    parameter S_WAIT        = 2'd1;
     parameter S_ALLOCATE    = 2'd2;
     parameter S_WRITE       = 2'd3;
 
@@ -62,7 +62,12 @@ module cache(
     
     reg [31:0]  proc_rdata_r, proc_rdata_w;
     reg         proc_stall_r, proc_stall_w; 
-    
+
+    // ===== write buffer =======
+    reg [blockSize - 1 : 0] write_buffer_data_r, write_buffer_data_w;
+    reg [27:0]              write_buffer_addr_r, write_buffer_addr_w;
+    reg                     empty_r, empty_w;
+
     integer i;
 
     // ===== wires =====
@@ -72,10 +77,10 @@ module cache(
     reg         valid;
     reg         hit;
     reg         dirty;
-    
-    // ===== input buffers =====
+
+    // ===== input buffers ======
     reg mem_ready_buf;
-    
+
     assign mem_read     = mem_read_w;
     assign mem_write    = mem_write_w;
     assign mem_addr     = mem_addr_w;
@@ -160,7 +165,61 @@ always @(*) begin
         end
     endcase
 end
-// ========== valid bit ============ //
+// =========== write buffer logic ============= //
+always @(*) begin
+    write_buffer_addr_w = write_buffer_addr_r;
+    write_buffer_data_w = write_buffer_data_r;
+    empty_w = empty_r;
+    case (state_r)
+        S_IDLE: begin
+            if((proc_read || proc_write) && !hit && !mem_write_r) begin
+                if(dirty) begin // block dirty -> write back
+                    if(empty_r) begin
+                        empty_w = 1'b0;
+                        write_buffer_addr_w = {tag_r[block_id], block_id};
+                        write_buffer_data_w = store_r[block_id];
+                    end
+                    else begin
+                        empty_w = 1'b1;
+                        write_buffer_addr_w = write_buffer_addr_r;
+                        write_buffer_data_w = write_buffer_data_r;
+                    end
+                end
+            end
+        end
+        S_WAIT: begin
+            if(mem_ready_buf) begin
+                if(dirty) begin // block dirty -> write back
+                    if(empty_r) begin
+                        empty_w = 1'b0;
+                        write_buffer_addr_w = {tag_r[block_id], block_id};
+                        write_buffer_data_w = store_r[block_id];
+                    end
+                    else begin
+                        empty_w = 1'b1;
+                        write_buffer_addr_w = write_buffer_addr_r;
+                        write_buffer_data_w = write_buffer_data_r;
+                    end
+                end    
+            end
+        end
+        S_WRITE: begin
+            empty_w = empty_r;
+            write_buffer_addr_w = write_buffer_addr_r;
+            write_buffer_data_w = write_buffer_data_r;
+        end
+        S_ALLOCATE: begin
+            if(mem_ready_buf) begin
+                if(!empty_r) begin
+                    empty_w = 1'b1;
+                    write_buffer_addr_w = write_buffer_addr_r;
+                    write_buffer_data_w = write_buffer_data_r;
+                end
+            end
+        end
+    endcase
+end
+// ========== Other bit ============ //
 always @(*) begin
     for(i = 0; i < blockNum; i = i + 1) begin
         valid_w[i] = valid_r[i];
@@ -171,8 +230,8 @@ always @(*) begin
         S_IDLE: begin
             if(proc_write && hit)
                 dirty_w[block_id]   = 1'b1;
-            if((proc_read || proc_write) && !hit) // read/write miss
-                valid_w[block_id]   = 1'b0;  
+            // if((proc_read || proc_write) && !hit) // read/write miss
+            //     valid_w[block_id]   = 1'b0;  
         end
         S_ALLOCATE: begin
             if(mem_ready_buf) begin
@@ -191,21 +250,67 @@ always @(*) begin
     case (state_r)
         S_IDLE: begin
             if((proc_read || proc_write) && !hit) begin
-                if(dirty) begin
-                    mem_write_w         = 1'b1;
-                    mem_wdata_w         = store_r[block_id];
+                if(mem_write_r == 1'b1 && !mem_ready_buf) begin // keep writing !!
+                    mem_write_w         = mem_wdata_r;
+                    mem_wdata_w         = mem_wdata_r;
                     mem_read_w          = 1'b0;
-                    mem_addr_w          = {tag_r[block_id], block_id};
+                    mem_addr_w          = mem_addr_w;    
+                end
+                else begin
+                    if(dirty) begin
+                        if(empty_r) begin // read data from memory !!
+                            mem_write_w         = 1'b0;
+                            mem_wdata_w         = mem_wdata_r;
+                            mem_read_w          = 1'b1;
+                            mem_addr_w          = proc_addr[29:2];
+                        end
+                        else begin // write the data in write buffer
+                            mem_write_w         = 1'b1;
+                            mem_wdata_w         = write_buffer_data_r;
+                            mem_read_w          = 1'b0;
+                            mem_addr_w          = write_buffer_addr_r;    
+                        end
+                    end
+                    else begin // read data from memory
+                        mem_write_w         = 1'b0;
+                        mem_wdata_w         = mem_wdata_r;
+                        mem_read_w          = 1'b1;
+                        mem_addr_w          = proc_addr[29:2];    
+                    end    
+                end
+            end
+            else begin
+                mem_write_w         = mem_write_r;
+                mem_wdata_w         = mem_wdata_r;
+                mem_read_w          = 1'b0;
+                mem_addr_w          = mem_addr_r;
+            end
+        end
+        S_WAIT: begin
+            if(mem_ready_buf) begin
+                if(dirty) begin
+                    if(empty_r) begin
+                        mem_write_w         = 1'b0;
+                        mem_wdata_w         = mem_wdata_r;
+                        mem_read_w          = 1'b1;
+                        mem_addr_w          = proc_addr[29:2];
+                    end
+                    else begin
+                        mem_write_w         = 1'b1;
+                        mem_wdata_w         = write_buffer_data_r;
+                        mem_read_w          = 1'b0;
+                        mem_addr_w          = write_buffer_addr_r;
+                    end
                 end
                 else begin
                     mem_write_w         = 1'b0;
                     mem_wdata_w         = mem_wdata_r;
                     mem_read_w          = 1'b1;
-                    mem_addr_w          = proc_addr[29:2];    
+                    mem_addr_w          = proc_addr[29:2];
                 end
             end
             else begin
-                mem_write_w         = 1'b0;
+                mem_write_w         = mem_write_r;
                 mem_wdata_w         = mem_wdata_r;
                 mem_read_w          = 1'b0;
                 mem_addr_w          = mem_addr_r;
@@ -218,7 +323,7 @@ always @(*) begin
                 mem_read_w          = 1'b1;
                 mem_addr_w          = proc_addr[29:2];
             end
-            else begin
+            else begin // keep writing !!
                 mem_write_w         = 1'b1;
                 mem_wdata_w         = mem_wdata_r;
                 mem_read_w          = 1'b0;
@@ -227,12 +332,20 @@ always @(*) begin
         end
         S_ALLOCATE: begin
             if(mem_ready_buf) begin
-                mem_write_w         = 1'b0;
-                mem_wdata_w         = mem_wdata_r;
-                mem_read_w          = 1'b0;
-                mem_addr_w          = mem_addr_r;
+                if(!empty_r) begin // clear the buffer !!
+                    mem_write_w         = 1'b1;
+                    mem_wdata_w         = write_buffer_data_r;
+                    mem_read_w          = 1'b0;
+                    mem_addr_w          = write_buffer_addr_r;
+                end
+                else begin // do nothing !!
+                    mem_write_w         = 1'b0;
+                    mem_wdata_w         = mem_wdata_r;
+                    mem_read_w          = 1'b0;
+                    mem_addr_w          = mem_addr_r;    
+                end
             end
-            else begin
+            else begin // keep reading !!
                 mem_write_w         = 1'b0;
                 mem_wdata_w         = mem_wdata_r;
                 mem_read_w          = 1'b1;
@@ -249,14 +362,37 @@ always @(*) begin
                 if(hit) //  read/write hit !!
                     state_w      = S_IDLE;
                 else begin
-                    if(dirty)  // block dirty -> write back
-                        state_w             = S_WRITE;
-                    else                   // block clean -> allocate memory
-                        state_w             = S_ALLOCATE;
+                    if(mem_write_r == 1'b1 && !mem_ready_buf)
+                        state_w             = S_WAIT;
+                    else begin
+                        if(dirty) begin // block dirty -> write back
+                            if(empty_r)
+                                state_w         = S_ALLOCATE;
+                            else
+                                state_w         = S_WRITE;
+                        end 
+                        else       // block clean -> allocate memory
+                            state_w             = S_ALLOCATE;    
+                    end    
                 end
             end
             else begin
                 state_w     = S_IDLE;  
+            end
+        end
+        S_WAIT: begin
+            if(mem_ready_buf) begin
+                if(dirty) begin // block dirty -> write back 
+                    if(empty_r)
+                        state_w         = S_ALLOCATE;
+                    else
+                        state_w         = S_WRITE;
+                end 
+                else       // block clean -> allocate memory
+                    state_w             = S_ALLOCATE;    
+            end
+            else begin
+                state_w     = S_WAIT;
             end
         end
         S_WRITE: begin
@@ -280,12 +416,16 @@ always @(*) begin
             if(proc_read || proc_write) begin
                 if(hit) //  read/write hit !!
                     proc_stall_w    = 1'b0;
-                else 
+                else begin   // read/write miss !!
                     proc_stall_w    = 1'b1;
+                end
             end
             else begin
                 proc_stall_w    = 1'b0;
             end
+        end
+        S_WAIT: begin
+            proc_stall_w    = 1'b1;
         end
         S_WRITE: begin
             proc_stall_w    = 1'b1;
@@ -316,6 +456,10 @@ always@( posedge clk ) begin
         proc_rdata_r    <= 32'd0;
         proc_stall_r    <= 1'b0;
         mem_ready_buf   <= 1'b0;
+        empty_r         <= 1'b0;
+        write_buffer_addr_r <= 28'd0;
+        write_buffer_data_r <= 128'd0;
+        
     end
     else begin
         for(i = 0; i < blockNum; i = i + 1) begin
@@ -332,6 +476,9 @@ always@( posedge clk ) begin
         proc_rdata_r    <= proc_rdata_w;
         proc_stall_r    <= proc_stall_w;
         mem_ready_buf   <= mem_ready;
+        empty_r         <= empty_w;
+        write_buffer_addr_r <= write_buffer_addr_w;
+        write_buffer_data_r <= write_buffer_data_w;
     end
 end
 
