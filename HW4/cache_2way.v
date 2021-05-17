@@ -39,9 +39,8 @@ module cache(
     parameter way           = 2;
 
     parameter S_IDLE        = 2'd0;
-    parameter S_COMP        = 2'd1;
-    parameter S_ALLOCATE    = 2'd2;
-    parameter S_WRITE       = 2'd3;
+    parameter S_ALLOCATE    = 2'd1;
+    parameter S_WRITE       = 2'd2;
 
 //==== wire/reg definition ================================
     
@@ -81,6 +80,9 @@ module cache(
     reg         hit0, hit1;
     reg         hit;   
     reg         dirty;
+
+    // ===== input buffers ======
+    reg mem_ready_buf;
 
     assign mem_read     = mem_read_w;
     assign mem_write    = mem_write_w;
@@ -136,12 +138,10 @@ always @(*) begin
                     if(hit_index == 1'b0) begin
                         used_w[block_id][0]     = 1'b1;
                         used_w[block_id][1]     = 1'b0;
-                        dirty_w[block_id][0]    = 1'b1;
                     end
                     else begin
                         used_w[block_id][0]     = 1'b0;
                         used_w[block_id][1]     = 1'b1;
-                        dirty_w[block_id][1]    = 1'b1;
                     end
 
                     if(block_offset == 2'd0)
@@ -156,7 +156,7 @@ always @(*) begin
             end
         end
         S_ALLOCATE: begin
-            if(mem_ready) begin
+            if(mem_ready_buf) begin
                 if(proc_read) begin // read operation
                     if(used_r[block_id][0]) begin
                         store_w[block_id][2 * blockSize - 1 -: 128]   = mem_rdata;
@@ -237,8 +237,13 @@ always @(*) begin
         tag_w[i] = tag_r[i];
     end
     case (state_r)
+        S_IDLE: begin
+            if(proc_write && hit) begin
+                dirty_w[block_id][hit_index] = 1'b1;
+            end
+        end
         S_ALLOCATE: begin
-            if(mem_ready) begin
+            if(mem_ready_buf) begin
                 if(used_r[block_id][0]) begin
                     valid_w[block_id][1]   = 1'b1;
                     tag_w[block_id][2 * tagSize - 1 -: tagSize] = tag_field;
@@ -261,6 +266,10 @@ always @(*) begin
 end
 // ========== memory logic ============ //
 always @(*) begin
+    mem_write_w         = mem_write_r;
+    mem_wdata_w         = mem_wdata_r;
+    mem_read_w          = mem_read_r;
+    mem_addr_w          = mem_addr_r;    
     case (state_r)
         S_IDLE: begin
             if((proc_read || proc_write) && !hit) begin
@@ -292,7 +301,7 @@ always @(*) begin
             end
         end
         S_WRITE: begin
-            if(mem_ready) begin
+            if(mem_ready_buf) begin
                 mem_write_w         = 1'b0;
                 mem_wdata_w         = mem_wdata_r;
                 mem_read_w          = 1'b1;
@@ -306,7 +315,7 @@ always @(*) begin
             end
         end
         S_ALLOCATE: begin
-            if(mem_ready) begin
+            if(mem_ready_buf) begin
                 mem_write_w         = 1'b0;
                 mem_wdata_w         = mem_wdata_r;
                 mem_read_w          = 1'b0;
@@ -323,6 +332,7 @@ always @(*) begin
 end
 // =========== state logic ============= //
 always @(*) begin
+    state_w = state_r;
     case (state_r)
         S_IDLE: begin
             if(proc_read || proc_write) begin
@@ -340,13 +350,13 @@ always @(*) begin
             end
         end
         S_WRITE: begin
-            if(mem_ready)
+            if(mem_ready_buf)
                 state_w     = S_ALLOCATE;
             else
                 state_w     = S_WRITE;
         end
         S_ALLOCATE: begin
-            if(mem_ready)
+            if(mem_ready_buf)
                 state_w     = S_IDLE;
             else
                 state_w     = S_ALLOCATE;
@@ -355,6 +365,7 @@ always @(*) begin
 end
 // ========= pcocessor stall logic ========= //
 always @(*) begin
+    proc_stall_w = proc_stall_r;
     case (state_r)
         S_IDLE: begin
             if(proc_read || proc_write) begin
@@ -371,7 +382,7 @@ always @(*) begin
             proc_stall_w    = 1'b1;
         end
         S_ALLOCATE: begin
-            if(mem_ready)
+            if(mem_ready_buf)
                 proc_stall_w    = 1'b0;
             else
                 proc_stall_w    = 1'b1;
@@ -396,6 +407,7 @@ always@( posedge clk ) begin
         mem_addr_r      <= 28'd0;
         proc_rdata_r    <= 32'd0;
         proc_stall_r    <= 1'b0;
+        mem_ready_buf   <= 1'b0;
     end
     else begin
         for(i = 0; i < set; i = i + 1) begin
@@ -412,6 +424,7 @@ always@( posedge clk ) begin
         mem_addr_r      <= mem_addr_w;
         proc_rdata_r    <= proc_rdata_w;
         proc_stall_r    <= proc_stall_w;
+        mem_ready_buf   <= mem_ready;
     end
 end
 

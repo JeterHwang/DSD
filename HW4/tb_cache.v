@@ -3,7 +3,7 @@
 
 `timescale 1 ns/10 ps
 `define CYCLE       10.0                // Modify cycle time here
-`define SDFFILE    "./cache_syn.sdf"   // Modify your sdf file name
+`define SDFFILE    "./cache_dm_syn.sdf"   // Modify your sdf file name
 
 `define OUTPUT_DELAY    0.3
 `define INPUT_DELAY     0.3
@@ -29,7 +29,7 @@ module tb_cache;
     wire    [MEM_WIDTH-1:0] mem_wdata;
     wire    [MEM_WIDTH-1:0] mem_rdata;
 
-    integer i, k, error, h, x, y;
+    integer i, k, error, h, x, y, read_miss, write_miss, stall_cycle, exe_cycle, write_back;
     
     memory u_mem (
         .clk        (clk)       ,
@@ -62,6 +62,28 @@ module tb_cache;
         initial $sdf_annotate(`SDFFILE, u_cache);
     `endif
 
+    initial begin
+        read_miss = 0;
+        write_miss = 0;
+        stall_cycle = 0;
+        exe_cycle = 0;
+        write_back = 0;
+    end
+    always @(posedge mem_write) begin
+        write_back = write_back + 1;
+    end
+    always @(posedge mem_read) begin
+        if(proc_read)
+            read_miss = read_miss + 1;
+        if(proc_write)
+            write_miss = write_miss + 1;
+    end
+    always @(posedge clk) begin
+        if(proc_stall)
+            stall_cycle = stall_cycle + 1;
+        if(proc_read || proc_write)
+            exe_cycle = exe_cycle + 1;
+    end
     // waveform dump
     initial begin
         // $dumpfile("cache.vcd");
@@ -172,6 +194,12 @@ module tb_cache;
         if(error==0) $display( "    Done correctly so far! ^_^ \n" );
         else         $display( "    Total %d errors detected so far! >\"< \n", error[14:0] );
         
+        $display("Miss rate of Read operation is %d / %d.", read_miss, 2048);
+        $display("Miss rate of Write operation is %d / %d.", write_miss, 1024);
+        $display("Write back rate is %d / %d.", write_back, 3072);
+        $display("Execution cycles is %d", exe_cycle);
+        $display("Stalled cycles is %d", stall_cycle);
+
         #(`CYCLE*4);
         if( error != 0 ) $display( "==== SORRY! There are %d errors. ====\n", error[14:0] );
         else $display( "==== CONGRATULATIONS! Pass cache read-write-read test. ====\n" );

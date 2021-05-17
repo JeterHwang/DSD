@@ -35,9 +35,8 @@ module cache(
     parameter blockNum      = 8;
 
     parameter S_IDLE        = 2'd0;
-    parameter S_COMP        = 2'd1;
-    parameter S_ALLOCATE    = 2'd2;
-    parameter S_WRITE       = 2'd3;
+    parameter S_ALLOCATE    = 2'd1;
+    parameter S_WRITE       = 2'd2;
 
 //==== wire/reg definition ================================
     
@@ -188,6 +187,10 @@ always @(*) begin
 end
 // ========== memory logic ============ //
 always @(*) begin
+    mem_write_w         = mem_write_r;
+    mem_wdata_w         = mem_wdata_r;
+    mem_read_w          = mem_read_r;
+    mem_addr_w          = mem_addr_r;
     case (state_r)
         S_IDLE: begin
             if((proc_read || proc_write) && !hit) begin
@@ -243,6 +246,7 @@ always @(*) begin
 end
 // =========== state logic ============= //
 always @(*) begin
+    state_w = state_r;
     case (state_r)
         S_IDLE: begin
             if(proc_read || proc_write) begin
@@ -275,6 +279,7 @@ always @(*) begin
 end
 // ========= pcocessor stall logic ========= //
 always @(*) begin
+    proc_stall_w = proc_stall_r;
     case (state_r)
         S_IDLE: begin
             if(proc_read || proc_write) begin
