@@ -32,6 +32,7 @@ b07901018 柯建廷
 ```
 ## 2021/5/22
 ```
-1. finish : input/output port declaration(the bandwidth of EX, M, WB signal still need to be fixed)
-2. unfinish : I/D cache stall control unit
+1. add RISCV_pipeline.v
+2. finish input/output port declaration(the bandwidth of EX, M, WB signal still need to be fixed)
+3. unfinish : I/D cache stall control unit
 ```
