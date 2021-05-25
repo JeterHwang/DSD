@@ -1,15 +1,17 @@
+`include "./ALUPipeline/compression_16.v"
+
 module instruction_fetch(
     input         clk,
     input         rst_n,
-    input         memory_stall,
-    input [31:0]  IF_DWrite,
-    input         IF_flush,
-    input         PC_write,
-    input         PC_src,
-    input [31:0]  instruction_in,
-    input [31:0]  branch_address,
-    output [29:0] I_addr,
-    output        I_ren,
+    input         memory_stall, 
+    input  [31:0] IF_DWrite,     
+    input         IF_flush,     
+    input         PC_write,      
+    input         PC_src,        
+    input  [31:0] instruction_in,
+    input  [31:0] branch_address,
+    output [29:0] I_addr,       
+    output        I_ren,         
     output [31:0] PC_1,
     output [31:0] instruction_1
 );
@@ -22,11 +24,27 @@ reg [31:0] instruction_out_r, instruction_out_w;
 // wires
 reg [29:0] I_addr_w;
 reg I_ren_w;
+wire[31:0] instruction_little; //instruction input with little_end
 
-assign PC_1             = PC_out_r;
-assign instruction_1    = instruction_out_r;
-assign I_addr           = I_addr_w;
-assign I_ren            = I_ren_w;
+assign PC_1              = PC_out_r;
+assign instruction_1     = instruction_out_r;
+assign I_addr            = I_addr_w;
+assign I_ren             = I_ren_w;
+assign instruction_little= {instruction_in[7:0],instruction_in[15:8],instruction_in[23:16],instruction_in[31:24]}; //instruction with little_end
+
+
+// ===== RVC ===== //
+// wires
+wire [15:0] inst_16;
+wire [31:0] inst_32;
+reg  [31:0] instruction;//real output instruction 
+assign inst_16 = instruction_little[15:0];
+Decompressor decompressor(.inst_16(inst_16),.inst_32(inst_32));
+always @(*) begin
+    if (instruction_little == 32'b0) instruction = 32'h00000013 ; //initialize but can ignore?
+    else if (instruction_little[1]&instruction_little[0]) instruction = instruction_little ;
+    else instruction = inst_32 ;
+end
 
 // ===== PC ===== //
 always @(*) begin
@@ -75,7 +93,7 @@ always @(*) begin
                 instruction_out_w = 32'h00000013; // NOP
             end
             else begin
-                instruction_out_w = instruction_in;
+                instruction_out_w = instruction;
             end    
         end
     end
@@ -89,7 +107,7 @@ end
 
 always @(posedge clk) begin
     if(!rst_n) begin
-        PC_r                <=32'd0;
+        PC_r                <= 32'd0;
         PC_out_r            <= 32'd0;
         instruction_out_r   <= 32'd0;
     end
