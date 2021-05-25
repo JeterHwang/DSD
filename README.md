@@ -36,3 +36,8 @@ b07901018 柯建廷
 2. finish input/output port declaration(the bandwidth of EX, M, WB signal still need to be fixed)
 3. unfinish : I/D cache stall control unit
 ```
+
+## 2021/5/25
+```
+1. unresolved : JALR hazard
+```

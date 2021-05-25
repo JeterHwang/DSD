@@ -11,7 +11,7 @@ module Execution(
     
     input         WriteBack_2,
     input [1:0]   Mem_2,
-    input [3:0]   Execution_2,  // {ALUOp, ALUsrc}
+    input [4:0]   Execution_2,  // {ALUOp, ALUsrc}
     
     input [31:0]  writeback_data_5,
     input         WriteBack_5,
@@ -24,14 +24,15 @@ module Execution(
     output [4:0]  Rd_3
 );
 
-parameter ADD       = 3'd0;
-parameter SUB       = 3'd1;
-parameter AND       = 3'd2;
-parameter OR        = 3'd3;
-parameter XOR       = 3'd4;
-parameter SLL       = 3'd5;
-parameter SRL       = 3'd6;
-parameter SRA       = 3'd7;
+parameter ADD       = 4'd0;
+parameter SUB       = 4'd1;
+parameter AND       = 4'd2;
+parameter OR        = 4'd3;
+parameter XOR       = 4'd4;
+parameter SLL       = 4'd5;
+parameter SRL       = 4'd6;
+parameter SRA       = 4'd7;
+parameter SLT       = 4'd8;
 
 reg [1:0]  Mem_r, Mem_w;
 reg        WriteBack_r, WriteBack_w;
@@ -41,6 +42,7 @@ reg [31:0] writedata_r, writedata_w;
 
 reg [31:0] ALU_in1;
 reg [31:0] ALU_in2;
+reg [31:0] temp;
 reg [1:0] forwardA;
 reg [1:0] forwardB;
 
@@ -51,7 +53,7 @@ assign writedata_3  = writedata_r;
 assign Rd_3         = Rd_r;
 
 always @(*) begin // forwarding unit
-    if(WriteBack_r && Rd_r != 0 && Rd_5 == Rs1_2) begin
+    if(WriteBack_r && Rd_r != 0 && Rd_r == Rs1_2) begin
         if(!(WriteBack_5 && Rd_5 != 0 && Rd_5 == Rs1_2)) begin
             forwardA = 2'b01;
         end
@@ -63,7 +65,7 @@ always @(*) begin // forwarding unit
         forwardA = 2'b00;
     end
 
-    if(WriteBack_r && Rd_r != 0 && Rd_5 == Rs2_2) begin
+    if(WriteBack_r && Rd_r != 0 && Rd_r == Rs2_2) begin
         if(!(WriteBack_5 && Rd_5 != 0 && Rd_5 == Rs2_2)) begin
             forwardB = 2'b01;
         end
@@ -96,38 +98,22 @@ end
 
 // ===== ALU input 2 ===== //
 always @(*) begin
-    if(Execution_2[0]) begin // (ALUsrc == 1) => immediate
-        case (forwardB)
-            2'b00: begin
-                ALU_in2 = immediate;
-            end
-            2'b01: begin
-                ALU_in2 = ALU_result_r;
-            end
-            2'b10: begin
-                ALU_in2 = writeback_data_5;
-            end
-            default: begin
-                ALU_in2 = immediate;
-            end
-        endcase
-    end
-    else begin
-        case (forwardB)
-            2'b00: begin
-                ALU_in2 = data2;
-            end
-            2'b01: begin
-                ALU_in2 = ALU_result_r;
-            end
-            2'b10: begin
-                ALU_in2 = writeback_data_5;
-            end
-            default: begin
-                ALU_in2 = data2;
-            end
-        endcase
-    end
+    ALU_in2 = Execution_2[0] ? immediate : temp;
+    
+    case (forwardB)
+        2'b00: begin
+            temp = data2;
+        end
+        2'b01: begin
+            temp = ALU_result_r;
+        end
+        2'b10: begin
+            temp = writeback_data_5;
+        end
+        default: begin
+            temp = data2;
+        end
+    endcase
 end
 
 // ===== ALU control ===== //
@@ -136,7 +122,7 @@ always @(*) begin
         ALU_result_w = ALU_result_r;        
     end
     else begin
-        case(Execution_2[3:1])
+        case(Execution_2[4:1])
             ADD: begin
                 ALU_result_w = $signed(ALU_in1) + $signed(ALU_in2);
             end
@@ -161,6 +147,9 @@ always @(*) begin
             SRA: begin
                 ALU_result_w = $signed(ALU_in1) >>> ALU_in2;
             end
+            SLT: begin
+                ALU_result_w = ($signed(ALU_in1) < $signed(ALU_in2)) ? 1 : 0;
+            end
         endcase    
     end
     
@@ -172,7 +161,7 @@ always @(*) begin
     WriteBack_w     = memory_stall ? WriteBack_r : WriteBack_2;
     Rd_w            = memory_stall ? Rd_r : Rd_2;
     
-    writedata_w     = memory_stall ? writedata_r : ALU_in2;
+    writedata_w     = memory_stall ? writedata_r : temp;
 end
 
 always @(posedge clk) begin

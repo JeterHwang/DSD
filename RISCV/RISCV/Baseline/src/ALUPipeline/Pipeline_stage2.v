@@ -18,7 +18,7 @@ module instruction_decode(
     
     output [1:0]  Mem_2, // Mem_2[1] : MemRead / Mem_2[0] : MemWrite
     output        WriteBack_2, // MemtoReg
-    output [3:0]  Execution_2, // Execution_2[3:1] : ALUOp / Execution_2[0] : ALUsrc
+    output [4:0]  Execution_2, // Execution_2[3:1] : ALUOp / Execution_2[0] : ALUsrc
     
     output [31:0] branch_address,
     output [31:0] IF_DWrite,
@@ -34,14 +34,15 @@ parameter SB_type   = 3'd3;
 parameter UJ_type   = 3'd4;
 parameter UNDEFINE  = 3'd5;
 
-parameter ADD       = 3'd0;
-parameter SUB       = 3'd1;
-parameter AND       = 3'd2;
-parameter OR        = 3'd3;
-parameter XOR       = 3'd4;
-parameter SLL       = 3'd5;
-parameter SRL       = 3'd6;
-parameter SRA       = 3'd7;
+parameter ADD       = 4'd0;
+parameter SUB       = 4'd1;
+parameter AND       = 4'd2;
+parameter OR        = 4'd3;
+parameter XOR       = 4'd4;
+parameter SLL       = 4'd5;
+parameter SRL       = 4'd6;
+parameter SRA       = 4'd7;
+parameter SLT       = 4'd8;
 
 integer i;
 
@@ -54,10 +55,10 @@ reg [4:0]  Rs1_r, Rs1_w;
 reg [4:0]  Rs2_r, Rs2_w;
 reg [31:0] data1_r, data1_w;
 reg [31:0] data2_r, data2_w;
-reg [31:0] immediate_r, immediate_w;
+reg [31:0] output_immediate_r, output_immediate_w;
 reg [1:0]  Mem_r, Mem_w;
 reg        WriteBack_r, WriteBack_w;
-reg [3:0]  Execution_r, Execution_w;
+reg [4:0]  Execution_r, Execution_w;
 
 // wires
 reg [31:0] branch_address_w;
@@ -65,10 +66,12 @@ reg [31:0] IF_DWrite_w;
 reg        IF_flush_w;
 reg        PC_write_w;
 reg        PC_src_w;
+reg [31:0] immediate_w;
+reg [31:0] reg1, reg2;
 
 // temporary wires
 reg [2:0]  instruction_type;
-reg [2:0]  ALUOp;
+reg [3:0]  ALUOp;
 reg        ALUsrc;
 reg [31:0] Rs1_Rs2;
 reg        data_hazard;
@@ -78,7 +81,7 @@ assign Rs1_2            = Rs1_r;
 assign Rs2_2            = Rs2_r;
 assign data1            = data1_r;
 assign data2            = data2_r;
-assign immediate        = immediate_r;
+assign immediate        = output_immediate_r;
 assign Mem_2            = Mem_r;
 assign WriteBack_2      = WriteBack_r;
 assign Execution_2      = Execution_r;
@@ -121,7 +124,6 @@ always @(*) begin
         Rs1_w       = Rs1_r;
         Rs1_w       = Rs1_r;
         Rd_w        = Rd_r;
-        immediate_w = immediate_r;
     end
     else begin
         case (instruction_type)
@@ -153,7 +155,7 @@ always @(*) begin
                 Rs1_w       = 5'd0;
                 Rs2_w       = 5'd0;
                 Rd_w        = instruction_1[11:7];
-                immediate_w = {instruction_1[31:12], 12'd0};
+                immediate_w = {{11{instruction_1[31]}}, instruction_1[31], instruction_1[19:12], instruction_1[20], instruction_1[30:21], 1'b0};
             end
             UNDEFINE: begin
                 Rs1_w       = 5'd0;
@@ -167,9 +169,32 @@ end
 
 // ===== registers ===== //
 always @(*) begin 
-    data1_w = memory_stall ? data1_r : register_w[Rs1_w];
-    data2_w = memory_stall ? data2_r : register_w[Rs2_w];
+    reg1 = register_w[Rs1_w];
+    reg2 = register_w[Rs2_w];
+
+    if(memory_stall) begin
+        data1_w = data1_r;
+    end
+    else begin
+        if(instruction_1[2]) //jalr, jal
+            data1_w = PC_1;
+        else
+            data1_w = reg1;
+    end
     
+    data2_w = memory_stall ? data2_r : reg2;
+    
+    if(memory_stall) begin
+        output_immediate_w = output_immediate_r;    
+    end
+    else begin
+        if(instruction_1[2]) //jalr, jal
+            output_immediate_w = 32'd4;
+        else
+            output_immediate_w = immediate_w;
+    end
+    
+
     for(i = 0; i < 32; i = i + 1)
         register_w[i] = register_r[i];
     
@@ -179,8 +204,12 @@ end
 
 // ===== branch hazard detection ===== //
 always @(*) begin 
-    branch_address_w    = $signed(PC_1) + $signed({immediate_w[30:0], 1'b0});
-    Rs1_Rs2             = $signed(Rs1_w) - $signed(Rs2_w);
+    if(instruction_1[3:2] == 2'b01) // jalr
+        branch_address_w    = $signed(reg1) + $signed(immediate_w);
+    else
+        branch_address_w    = $signed(PC_1) + $signed(immediate_w);
+    
+    Rs1_Rs2     = $signed(reg1) - $signed(reg2);
     
     if(instruction_1[6]) begin // branching instructions
         if(instruction_1[2]) begin // JALR, JAL
@@ -224,7 +253,7 @@ end
 
 // ===== control ===== //
 always @(*) begin
-    Execution_w = memory_stall ? Execution_r : ({ALUOp, ALUsrc} & {4{~data_hazard}});
+    Execution_w = memory_stall ? Execution_r : ({ALUOp, ALUsrc} & {5{~data_hazard}});
     
     if(memory_stall) begin
         Mem_w = Mem_r;
@@ -243,7 +272,7 @@ always @(*) begin
         WriteBack_w = WriteBack_r;
     end
     else begin
-        if(instruction_type[2:1]) // SB_type, S_type
+        if(instruction_type[1]) // SB_type, S_type
             WriteBack_w = 1'b0 & (~data_hazard);
         else
             WriteBack_w = 1'b1 & (~data_hazard);    
@@ -253,41 +282,46 @@ end
 
 // ===== ALUOp ===== //
 always @(*) begin 
-    case (instruction_1[13:12]) // FUNCT3
-        3'b000: begin
-            if(instruction_1[30])
-                ALUOp = SUB;
-            else
+    if(instruction_1[3]) begin //jal (not have funct 3)
+        ALUOp = ADD;   
+    end
+    else begin
+        case (instruction_1[14:12]) // FUNCT3
+            3'b000: begin
+                if(instruction_1[30])
+                    ALUOp = SUB;
+                else
+                    ALUOp = ADD;
+            end    
+            3'b001: begin
+                ALUOp = SLL;
+            end
+            3'b010: begin
+                if(instruction_1[4])
+                    ALUOp = SLT;
+                else
+                    ALUOp = ADD;
+            end
+            3'b100: begin
+                ALUOp = XOR;
+            end
+            3'b101: begin
+                if(instruction_1[30])
+                    ALUOp = SRA;
+                else
+                    ALUOp = SRL;
+            end
+            3'b110: begin
+                ALUOp = OR;
+            end
+            3'b111: begin
+                ALUOp = AND;
+            end
+            default: begin
                 ALUOp = ADD;
-        end    
-        3'b001: begin
-            ALUOp = SLL;
-        end
-        3'b010: begin
-            if(instruction_1[4])
-                ALUOp = SUB;
-            else
-                ALUOp = ADD;
-        end
-        3'b100: begin
-            ALUOp = XOR;
-        end
-        3'b101: begin
-            if(instruction_1[30])
-                ALUOp = SRA;
-            else
-                ALUOp = SRL;
-        end
-        3'b110: begin
-            ALUOp = OR;
-        end
-        3'b111: begin
-            ALUOp = AND;
-        end
-        default: begin
-            ALUOp = ADD;
-        end
-    endcase
+            end
+        endcase    
+    end
 end
 
 // ===== ALUsrc ===== //
@@ -309,10 +343,10 @@ always @(posedge clk) begin
         Rs2_r       <= 5'd0;
         data1_r     <= 32'd0;
         data2_r     <= 32'd0;
-        immediate_r <= 32'd0;
+        output_immediate_r <= 32'd0;
         Mem_r       <= 2'd0;
         WriteBack_r <= 1'b0;
-        Execution_r <= 4'd0;
+        Execution_r <= 5'd0;
     end
     else begin
         for(i = 0; i < 32; i = i + 1)
@@ -322,7 +356,7 @@ always @(posedge clk) begin
         Rs2_r       <= Rs2_w;
         data1_r     <= data1_w;
         data2_r     <= data2_w;
-        immediate_r <= immediate_w;
+        output_immediate_r <= output_immediate_w;
         Mem_r       <= Mem_w;
         WriteBack_r <= WriteBack_w;
         Execution_r <= Execution_w;

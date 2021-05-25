@@ -1,8 +1,8 @@
-`include "./Pipeline_stage1.v"
-`include "./Pipeline_stage2.v"
-`include "./Pipeline_stage3.v"
-`include "./Pipeline_stage4.v"
-`include "./Pipeline_stage5.v"
+`include "./ALUPipeline/Pipeline_stage1.v"
+`include "./ALUPipeline/Pipeline_stage2.v"
+`include "./ALUPipeline/Pipeline_stage3.v"
+`include "./ALUPipeline/Pipeline_stage4.v"
+`include "./ALUPipeline/Pipeline_stage5.v"
 
 module RISCV_Pipeline(
     input clk,
@@ -42,7 +42,7 @@ wire [31:0] data2;
 wire [31:0] immediate;
 wire [1:0]  Mem_2;
 wire        WriteBack_2;
-wire [3:0]  Execution_2;
+wire [4:0]  Execution_2;
 wire [31:0] branch_address;
 wire [31:0] IF_DWrite;
 wire        IF_flush;
@@ -82,6 +82,7 @@ instruction_fetch stage1(
     .rst_n(rst_n),
     .memory_stall(memory_stall),
     .IF_DWrite(IF_DWrite),
+    .IF_flush(IF_flush),
     .PC_write(PC_write),
     .PC_src(PC_src),
     .instruction_in(ICACHE_rdata),
