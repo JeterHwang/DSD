@@ -39,8 +39,8 @@ module L2dcache(
     output [L2_WIDTH-1:0]       mem_wdata;
     
 //==== wire/reg definition ================================
-    reg [L2_WIDTH-1:0]      L2_r        [0:L2_BLOCK-1];
-    reg [L2_WIDTH-1:0]      L2_w        [0:L2_BLOCK-1];
+    reg [L2_WIDTH-1:0]      L2_r        [0:L2_BLOCK*ASSO-1];
+    reg [L2_WIDTH-1:0]      L2_w        [0:L2_BLOCK*ASSO-1];
     reg [L2_TAG-1:0]        tag_r       [0:L2_BLOCK*ASSO-1];
     reg [L2_TAG-1:0]        tag_w       [0:L2_BLOCK*ASSO-1];
     reg [L2_BLOCK*ASSO-1:0] valid_r;
