@@ -38,11 +38,11 @@ assign Mem2Reg          = Mem_3[1]; // lw
 assign D_addr           = ALU_result_3[31:2];
 assign D_wen            = Mem_3[0];
 assign D_ren            = Mem_3[1];
-assign D_writeData      = writedata_3;
+assign D_writeData      = {writedata_3[7:0],writedata_3[15:8],writedata_3[23:16],writedata_3[31:24]}; //with little_end
 
 
 always @(*) begin // data memory
-    memory_result_w = memory_stall ? memory_result_r : D_readData;
+    memory_result_w = memory_stall ? memory_result_r : {D_readData[7:0],D_readData[15:8],D_readData[23:16],D_readData[31:24]}; //with little_end
     ALU_result_w    = memory_stall ? ALU_result_r : ALU_result_3;
     Rd_w            = memory_stall ? Rd_r : Rd_3;
     WriteBack_w     = memory_stall ? WriteBack_r : WriteBack_3;    
