@@ -53,25 +53,22 @@ assign writedata_3  = writedata_r;
 assign Rd_3         = Rd_r;
 
 always @(*) begin // forwarding unit
+    
     if(WriteBack_r && Rd_r != 0 && Rd_r == Rs1_2) begin
-        if(!(WriteBack_5 && Rd_5 != 0 && Rd_5 == Rs1_2)) begin
-            forwardA = 2'b01;
-        end
-        else begin
-            forwardA = 2'b10;
-        end
+        forwardA = 2'b10;
+    end
+    else if(WriteBack_5 && Rd_5 != 0 && Rd_5 == Rs1_2) begin
+        forwardA = 2'b01;
     end
     else begin
         forwardA = 2'b00;
     end
 
     if(WriteBack_r && Rd_r != 0 && Rd_r == Rs2_2) begin
-        if(!(WriteBack_5 && Rd_5 != 0 && Rd_5 == Rs2_2)) begin
-            forwardB = 2'b01;
-        end
-        else begin
-            forwardB = 2'b10;
-        end
+        forwardB = 2'b10;
+    end
+    else if(WriteBack_5 && Rd_5 != 0 && Rd_5 == Rs2_2) begin
+        forwardB = 2'b01;
     end
     else begin
         forwardB = 2'b00;
@@ -85,10 +82,10 @@ always @(*) begin
             ALU_in1 = data1;
         end
         2'b01: begin
-            ALU_in1 = ALU_result_r;
+            ALU_in1 = writeback_data_5;
         end
         2'b10: begin
-            ALU_in1 = writeback_data_5;
+            ALU_in1 = ALU_result_r;
         end
         default: begin
             ALU_in1 = data1;
@@ -98,22 +95,22 @@ end
 
 // ===== ALU input 2 ===== //
 always @(*) begin
-    ALU_in2 = Execution_2[0] ? immediate : temp;
-    
     case (forwardB)
         2'b00: begin
             temp = data2;
         end
         2'b01: begin
-            temp = ALU_result_r;
+            temp = writeback_data_5;
         end
         2'b10: begin
-            temp = writeback_data_5;
+            temp = ALU_result_r;
         end
         default: begin
             temp = data2;
         end
     endcase
+    
+    ALU_in2 = Execution_2[0] ? immediate : temp;
 end
 
 // ===== ALU control ===== //

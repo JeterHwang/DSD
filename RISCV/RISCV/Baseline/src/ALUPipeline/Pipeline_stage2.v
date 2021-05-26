@@ -6,6 +6,11 @@ module instruction_decode(
     input [31:0]  write_data,
     input [4:0]   write_address, // Rd_5
     
+    input [4:0]   Rd_3,
+    input [31:0]  forward_result_4,
+    //input [1:0]   Mem_3,
+
+
     input [31:0]  instruction_1,
     input [31:0]  PC_1,
     
@@ -51,7 +56,7 @@ reg [31:0] register_w [0:31];
 
 // regs 
 reg [4:0]  Rd_r, Rd_w;
-reg [4:0]  Rs1_r, Rs1_w;
+reg [4:0]  Rs1_o_r, Rs1_o_w;
 reg [4:0]  Rs2_r, Rs2_w;
 reg [31:0] data1_r, data1_w;
 reg [31:0] data2_r, data2_w;
@@ -63,11 +68,13 @@ reg [4:0]  Execution_r, Execution_w;
 // wires
 reg [31:0] branch_address_w;
 reg [31:0] IF_DWrite_w;
+reg [4:0]  Rs1_w;
 reg        IF_flush_w;
 reg        PC_write_w;
 reg        PC_src_w;
 reg [31:0] immediate_w;
 reg [31:0] reg1, reg2;
+reg [31:0] SB1, SB2;
 
 // temporary wires
 reg [2:0]  instruction_type;
@@ -77,7 +84,7 @@ reg [31:0] Rs1_Rs2;
 reg        data_hazard;
 
 assign Rd_2             = Rd_r;
-assign Rs1_2            = Rs1_r;
+assign Rs1_2            = Rs1_o_r;
 assign Rs2_2            = Rs2_r;
 assign data1            = data1_r;
 assign data2            = data2_r;
@@ -121,8 +128,8 @@ end
 // ===== decoding ===== //
 always @(*) begin
     if(memory_stall) begin
-        Rs1_w       = Rs1_r;
-        Rs1_w       = Rs1_r;
+        Rs1_o_w       = Rs1_o_r;
+        Rs2_w       = Rs2_r;
         Rd_w        = Rd_r;
     end
     else begin
@@ -164,26 +171,12 @@ always @(*) begin
                 immediate_w = 5'd0;
             end
         endcase    
+        Rs1_o_w = (instruction_1[3:2] == 2'b01) ? 5'd0 : Rs1_w;
     end
 end
 
 // ===== registers ===== //
 always @(*) begin 
-    reg1 = register_w[Rs1_w];
-    reg2 = register_w[Rs2_w];
-
-    if(memory_stall) begin
-        data1_w = data1_r;
-    end
-    else begin
-        if(instruction_1[2]) //jalr, jal
-            data1_w = PC_1;
-        else
-            data1_w = reg1;
-    end
-    
-    data2_w = memory_stall ? data2_r : reg2;
-    
     if(memory_stall) begin
         output_immediate_w = output_immediate_r;    
     end
@@ -200,16 +193,57 @@ always @(*) begin
     
     if(!memory_stall && write_address != 0 && WriteBack_5)
         register_w[write_address] = write_data;
+    
+    reg1 = register_w[Rs1_w];
+    reg2 = register_w[Rs2_w];
+
+    if(memory_stall) begin
+        data1_w = data1_r;
+    end
+    else begin
+        if(instruction_1[2]) //jalr, jal
+            data1_w = PC_1;
+        else
+            data1_w = reg1;
+    end
+    
+    data2_w = memory_stall ? data2_r : reg2;
 end
 
 // ===== branch hazard detection ===== //
 always @(*) begin 
-    if(instruction_1[3:2] == 2'b01) // jalr
-        branch_address_w    = $signed(reg1) + $signed(immediate_w);
-    else
+    if(instruction_1[3:2] == 2'b01) begin // jalr
+        if(Rd_3 == Rs1_w) begin
+            branch_address_w    = $signed(forward_result_4) + $signed(immediate_w); 
+        end
+        else begin
+            branch_address_w    = $signed(reg1) + $signed(immediate_w);    
+        end
+    end
+    else begin
         branch_address_w    = $signed(PC_1) + $signed(immediate_w);
-    
-    Rs1_Rs2     = $signed(reg1) - $signed(reg2);
+    end
+
+    if(Rs1_w == Rs2_w) begin
+        SB1     = reg1;
+        SB2     = reg2;
+    end
+    else begin
+        if(Rd_3 != 0 && Rs1_w == Rd_3) begin
+            SB1     = forward_result_4;
+            SB2     = reg2;
+        end 
+        else if(Rd_3 != 0 && Rs2_w == Rd_3) begin
+            SB1     = reg1;
+            SB2     = forward_result_4;
+        end
+        else begin
+            SB1     = reg1;
+            SB2     = reg2;
+        end
+    end
+        
+    Rs1_Rs2     = $signed(SB1) - $signed(SB2);
     
     if(instruction_1[6]) begin // branching instructions
         if(instruction_1[2]) begin // JALR, JAL
@@ -241,9 +275,47 @@ end
 always @(*) begin 
     IF_DWrite_w         = instruction_1;
 
-    if(Mem_r[1] && (Rd_r == Rs1_w || Rd_r == Rs2_w)) begin
-        data_hazard     = 1'b1;
-        PC_write_w      = 1'b1;
+    if(instruction_1[6] == 1'b1 && instruction_1[3] == 1'b0) begin // jalr, bne, beq data hazard
+        if(instruction_1[2]) begin // jalr
+            if(Rd_r != 0 && Rs1_w == Rd_r) begin
+                data_hazard     = 1'b1;
+                PC_write_w      = 1'b1;
+            end    
+            else begin
+                data_hazard     = 1'b0;
+                PC_write_w      = 1'b0;   
+            end
+        end
+        else begin // bne, beq
+            if(Rs1_w == Rs2_w) begin // no hazard detection needed !!
+                data_hazard     = 1'b0;
+                PC_write_w      = 1'b0;
+            end
+            else begin
+                if(Rd_r != 0 && Rs1_w == Rd_r) begin
+                    data_hazard     = 1'b1;
+                    PC_write_w      = 1'b1;
+                end
+                else if(Rd_r != 0 && Rs2_w == Rd_r) begin
+                    data_hazard     = 1'b1;
+                    PC_write_w      = 1'b1;
+                end
+                else begin
+                    data_hazard     = 1'b0;
+                    PC_write_w      = 1'b0;
+                end    
+            end
+        end
+    end
+    else if(Mem_r[1]) begin  // load-use hazard
+        if(Rd_r == Rs1_w || Rd_r == Rs2_w) begin
+            data_hazard     = 1'b1;
+            PC_write_w      = 1'b1;    
+        end
+        else begin
+            data_hazard     = 1'b0;
+            PC_write_w      = 1'b0;    
+        end
     end
     else begin
         data_hazard     = 1'b0;
@@ -288,10 +360,15 @@ always @(*) begin
     else begin
         case (instruction_1[14:12]) // FUNCT3
             3'b000: begin
-                if(instruction_1[30])
-                    ALUOp = SUB;
-                else
+                if(instruction_1[6:5] == 2'b01) begin// R-type
+                    if(instruction_1[30])
+                        ALUOp = SUB;
+                    else
+                        ALUOp = ADD;
+                    end
+                else begin
                     ALUOp = ADD;
+                end
             end    
             3'b001: begin
                 ALUOp = SLL;
@@ -339,7 +416,7 @@ always @(posedge clk) begin
         for(i = 0; i < 32; i = i + 1)
             register_r[i] <= 32'd0;
         Rd_r        <= 5'd0;
-        Rs1_r       <= 5'd0;
+        Rs1_o_r     <= 5'd0;
         Rs2_r       <= 5'd0;
         data1_r     <= 32'd0;
         data2_r     <= 32'd0;
@@ -352,7 +429,7 @@ always @(posedge clk) begin
         for(i = 0; i < 32; i = i + 1)
             register_r[i] <= register_w[i];
         Rd_r        <= Rd_w;
-        Rs1_r       <= Rs1_w;
+        Rs1_o_r     <= Rs1_o_w;
         Rs2_r       <= Rs2_w;
         data1_r     <= data1_w;
         data2_r     <= data2_w;

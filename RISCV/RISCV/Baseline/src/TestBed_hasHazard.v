@@ -90,7 +90,7 @@ module	TestBed(
 							begin
 								nxtaddr = curaddr + 1;
 								if( data_modify != answer ) begin
-									$display("Addr 0x%h : expect 0x%h while got %h\n", addr, answer, data_modify);
+									//$display("Addr 0x%h : expect 0x%h while got %h\n", addr, answer, data_modify);
 									nxt_error_num = error_num + 8'd1;
 								end
 									

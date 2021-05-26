@@ -17,6 +17,12 @@ b07901018 柯建廷
     - source /usr/cad/synopsys/CIC/synthesis.cshrc
 ```
 
+## Test Command
+```
+RTL:
+    ncverilog Final_tb.v CHIP.v slow_memory.v +define+noHazard +access+r
+```
+
 ## Git usage
 ```
 - Clone repo
@@ -40,4 +46,8 @@ b07901018 柯建廷
 ## 2021/5/25
 ```
 1. unresolved : JALR hazard
+```
+## 2021/5/26
+```
+1. JALR, BNE, BEQ hazard can be solved by branch prediction
 ```

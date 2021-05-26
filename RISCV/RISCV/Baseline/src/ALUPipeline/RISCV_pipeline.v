@@ -60,6 +60,7 @@ wire [4:0]  Rd_3;
 
 // ==== L4 signals ==== //
 // output 
+wire [31:0] forward_result_4;
 wire [31:0] memory_result_4;
 wire [31:0] ALU_result_4;
 wire [4:0]  Rd_4;
@@ -100,6 +101,8 @@ instruction_decode stage2(
     .WriteBack_5(Wb_5),
     .write_data(Wd_5),
     .write_address(Rd_5),
+    .Rd_3(Rd_3),
+    .forward_result_4(forward_result_4),
     .instruction_1(instruction_1),
     .PC_1(PC_1),
     .Rd_2(Rd_2),
@@ -153,6 +156,7 @@ Memory stage4(
     .Rd_3(Rd_3),
     .memory_result_4(memory_result_4),
     .ALU_result_4(ALU_result_4),
+    .forward_result_4(forward_result_4),
     .Rd_4(Rd_4),
     .WriteBack_4(WriteBack_4),
     .Mem2Reg(Mem2Reg),
