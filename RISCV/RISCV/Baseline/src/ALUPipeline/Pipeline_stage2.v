@@ -184,7 +184,7 @@ always @(*) begin
     end
     else begin
         if(instruction_1[2]) //jalr, jal
-            output_immediate_w = 32'd4;
+            output_immediate_w = jj_16 ? 32'd2 : 32'd4;
         else
             output_immediate_w = immediate_w;
     end
