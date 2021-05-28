@@ -18,16 +18,16 @@
 	`include "./TestBed_hasHazard.v"
 `endif	
 `ifdef BrPred
-	`define IMEM_INIT "I_mem_BrPred"
-	`include "./TestBed_BrPred.v"
+	`define IMEM_INIT "../../Extension/BrPred/a10b20c30/I_mem_BrPred"
+	`include "../../Extension/BrPred/a10b20c30/TestBed_BrPred.v"
 `endif
 `ifdef compression
-	`define IMEM_INIT "I_mem_compression"
-	`include "./TestBed_compression.v"
+	`define IMEM_INIT "../../Extension/Compression/DEADxF625/I_mem_compression"
+	`include "../../Extension/Compression/DEADxF625/TestBed_compression.v"
 `endif
 `ifdef decompression
-	`define IMEM_INIT "I_mem_decompression"
-	`include "./TestBed_compression.v"
+	`define IMEM_INIT "../../Extension/Compression/DEADxF625/I_mem_decompression"
+	`include "../../Extension/Compression/DEADxF625/TestBed_compression.v"
 `endif			
 
 module Final_tb;
