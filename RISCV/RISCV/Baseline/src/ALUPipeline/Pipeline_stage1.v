@@ -61,17 +61,22 @@ end
 // ===== PC ===== //
 always @(*) begin
     if(memory_stall) begin
-        PC_w = PC_r;
+        PC_w        = PC_r;
+        taken_w     = taken_r;
     end
     else begin 
         if(flush) begin
-            PC_w = branchPC;
+            PC_w        = branchPC;
+            taken_w     = 1'b0;
         end
         else begin
             if(PC_write) begin
-                PC_w = PC_r;
+                PC_w        = PC_r;
+                taken_w     = taken_r;
             end
             else begin
+                taken_w = taken;
+                
                 if(taken) // branch taken
                     PC_w = branchPC;
                 else
