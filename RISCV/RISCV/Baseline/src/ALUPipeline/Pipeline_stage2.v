@@ -9,6 +9,8 @@ module instruction_decode(
     input [4:0]   Rd_3,
     input [31:0]  forward_result_4,
     //input [1:0]   Mem_3,
+    //for RVC jal and jalr
+    input         jj_16,
 
 
     input [31:0]  instruction_1,
