@@ -24,6 +24,12 @@ RTL:
     ncverilog Final_tb.v CHIP.v slow_memory.v +define+hasHazard +access+r
 ```
 
+## Synthesis Command
+```
+read_file -format verilog CHIP.v
+source CHIP_syn.sdc
+```
+
 ## Git usage
 ```
 - Clone repo
