@@ -26,7 +26,7 @@ RTL:
 
 ## Synthesis Command
 ```
-read_file –format verilog CHIP.v
+read_file -format verilog CHIP.v
 source CHIP_syn.sdc
 ```
 
