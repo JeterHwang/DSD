@@ -147,6 +147,9 @@ always @(*) begin
             SLT: begin
                 ALU_result_w = ($signed(ALU_in1) < $signed(ALU_in2)) ? 1 : 0;
             end
+            default: begin
+                ALU_result_w = 32'd0;
+            end
         endcase    
     end
     

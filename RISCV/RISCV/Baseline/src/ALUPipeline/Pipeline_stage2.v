@@ -163,7 +163,7 @@ always @(*) begin
                 Rd_w        = instruction_1[11:7];
                 immediate_w = {{11{instruction_1[31]}}, instruction_1[31], instruction_1[19:12], instruction_1[20], instruction_1[30:21], 1'b0};
             end
-            UNDEFINE: begin
+            default: begin
                 Rs1_w       = 5'd0;
                 Rs2_w       = 5'd0;
                 Rd_w        = 5'd0;
