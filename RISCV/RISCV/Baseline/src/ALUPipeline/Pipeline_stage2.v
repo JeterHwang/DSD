@@ -64,11 +64,11 @@ reg [31:0] register_w [0:31];
 
 // regs 
 reg [4:0]  Rd_r, Rd_w;
-reg [4:0]  Rs1_o_r, Rs1_o_w;
-reg [4:0]  Rs2_o_r, Rs2_o_w;
+reg [4:0]  Rs1_r, Rs1_w;
+reg [4:0]  Rs2_r, Rs2_w;
 reg [31:0] data1_r, data1_w;
 reg [31:0] data2_r, data2_w;
-reg [31:0] output_immediate_r, output_immediate_w;
+reg [31:0] immediate_r, immediate_w;
 reg [1:0]  Mem_r, Mem_w;
 reg        WriteBack_r, WriteBack_w;
 reg [4:0]  Execution_r, Execution_w;
@@ -78,32 +78,24 @@ reg        is_branchInst_r, is_branchInst_w;
 reg [1:0]  branch_type_r, branch_type_w;
 
 // wires
-reg [31:0] branch_address_w;
 reg [31:0] IF_DWrite_w;
-reg [4:0]  Rs1_w;
-reg [4:0]  Rs2_w;
-reg        IF_flush_w;
 reg        PC_write_w;
-reg        PC_src_w;
-reg [31:0] immediate_w;
 reg [31:0] reg1, reg2;
-reg [31:0] SB1, SB2;
 
 // temporary wires
 reg [2:0]  instruction_type;
 reg [3:0]  ALUOp;
 reg        ALUsrc;
-reg [31:0] Rs1_Rs2;
 reg        data_hazard;
 
 assign Rd_2             = Rd_r;
-assign Rs1_2            = Rs1_o_r;
-assign Rs2_2            = Rs2_o_r;
+assign Rs1_2            = Rs1_r;
+assign Rs2_2            = Rs2_r;
 assign data1            = data1_r;
 assign data2            = data2_r;
-assign immediate        = output_immediate_r;
+assign immediate        = immediate_r;
 
-assign is_branchInst    = is_branchInst_r;
+assign is_branchInst_2  = is_branchInst_r;
 assign PC_2             = PC_r;
 assign prev_taken_2     = taken_r;
 assign branch_type_2    = branch_type_r;
@@ -140,22 +132,16 @@ always @(*) begin
                 instruction_type = UJ_type;
         end
     endcase 
-
-    
 end
 // ===== decoding ===== //
 always @(*) begin
     if(memory_stall) begin
-        Rs1_o_w     = Rs1_o_r;
-        Rs2_o_w     = Rs2_o_r;
-        Rs1_w       = Rs1_o_r;
-        Rs2_w       = Rs2_o_r;
+        Rs1_w       = Rs1_r;
+        Rs2_w       = Rs2_r;
         Rd_w        = Rd_r;
-        immediate_w = output_immediate_r;
+        immediate_w = immediate_r;
     end
     else if(flush) begin
-        Rs1_o_w     = 5'd0;
-        Rs2_o_w     = 5'd0;
         Rs1_w       = 5'd0;
         Rs2_w       = 5'd0;
         Rd_w        = 5'd0;
@@ -200,8 +186,6 @@ always @(*) begin
                 immediate_w = 5'd0;
             end
         endcase    
-        Rs1_o_w = (instruction_1[3:2] == 2'b01) ? 5'd0 : Rs1_w;
-        Rs2_o_w = (instruction_1[3:2] == 2'b01) ? Rs1_w : Rs2_w;
     end
 end
 
@@ -212,19 +196,6 @@ always @(*) begin
     
     if(!memory_stall && write_address != 0 && WriteBack_5)
         register_w[write_address] = write_data;
-    // -------------------------------------------------------
-    if(memory_stall) begin
-        output_immediate_w = output_immediate_r;    
-    end
-    else if(flush) begin
-        output_immediate_w = 32'd0;
-    end
-    else begin
-        if(instruction_1[2]) //jalr, jal
-            output_immediate_w = 32'd4;
-        else
-            output_immediate_w = immediate_w;
-    end  
     // -------------------------------------------------------   
     reg1 = register_w[Rs1_w];
     reg2 = register_w[Rs2_w];
@@ -236,10 +207,7 @@ always @(*) begin
         data1_w = 32'd0;
     end
     else begin
-        if(instruction_1[2]) //jalr, jal
-            data1_w = PC_1;
-        else
-            data1_w = reg1;
+        data1_w = reg1;
     end
     // ---------------------------------------------------------
     if(memory_stall) begin
@@ -249,10 +217,7 @@ always @(*) begin
         data2_w = 32'd0;
     end
     else begin
-        if(instruction_1[2]) //jalr, jal
-            data1_w = reg1;
-        else
-            data2_w = reg2;
+        data2_w = reg2;
     end
 end
 
@@ -262,6 +227,10 @@ always @(*) begin
         PC_w        = PC_r;
         taken_w     = taken_r;
     end
+    else if(flush) begin
+        PC_w        = 32'd0;
+        taken_w     = 1'b0;
+    end
     else begin
         PC_w        = PC_1; 
         taken_w     = prev_taken_1;
@@ -270,6 +239,9 @@ always @(*) begin
     
     if(memory_stall) begin
         is_branchInst_w = is_branchInst_r;
+    end
+    else if(flush) begin
+        is_branchInst_w = 1'b0;
     end
     else begin
         if(instruction_1[6:5] == 2'b11) begin // BNE, BEQ, JALR, JAL
@@ -282,6 +254,9 @@ always @(*) begin
     
     if(memory_stall) begin
         branch_type_w = branch_type_r;    
+    end
+    else if(flush) begin
+        branch_type_w = BNE;    // default type !!
     end
     else begin
         if(instruction_1[6:5] == 2'b11) begin // BNE, BEQ, JALR, JAL
@@ -299,9 +274,12 @@ always @(*) begin
                     branch_type_w = JAL;
                 end
                 default: begin
-                    branch_type_w = JAL; // meaningless !!
+                    branch_type_w = BNE; // meaningless !!
                 end
             endcase
+        end
+        else begin
+            branch_type_w = BNE;
         end    
     end
     
@@ -374,17 +352,20 @@ always @(*) begin
         case (instruction_1[14:12]) // FUNCT3
             3'b000: begin
                 if(instruction_1[6:5] == 2'b01) begin// R-type
-                    if(instruction_1[30])
+                    if(instruction_1[30])   // SUB
                         ALUOp = SUB;
-                    else
+                    else                    // ADD
                         ALUOp = ADD;
-                    end
+                end
                 else begin
-                    ALUOp = ADD;
+                    if({instruction_1[6], instruction_1[2]} == 2'b10) //BEQ
+                        ALUOp = SUB;
+                    else                    // I type
+                        ALUOp = ADD;
                 end
             end    
             3'b001: begin
-                ALUOp = SLL;
+                ALUOp = SUB;
             end
             3'b010: begin
                 if(instruction_1[4])
@@ -416,7 +397,7 @@ end
 
 // ===== ALUsrc ===== //
 always @(*) begin
-    if(instruction_type == R_type) begin
+    if(instruction_type == R_type || instruction_type == SB_type) begin
         ALUsrc = 1'b0;
     end
     else begin
@@ -427,33 +408,37 @@ end
 always @(posedge clk) begin
     if(!rst_n) begin
         for(i = 0; i < 32; i = i + 1)
-            register_r[i] <= 32'd0;
-        Rd_r        <= 5'd0;
-        Rs1_o_r     <= 5'd0;
-        Rs2_o_r       <= 5'd0;
-        data1_r     <= 32'd0;
-        data2_r     <= 32'd0;
-        output_immediate_r <= 32'd0;
-        Mem_r       <= 2'd0;
-        WriteBack_r <= 1'b0;
-        Execution_r <= 5'd0;
-        PC_r        <= 32'd0;
-        is_branchInst_r <= 1'b0;
+            register_r[i]   <= 32'd0;
+        Rd_r                <= 5'd0;
+        Rs1_r               <= 5'd0;
+        Rs2_r               <= 5'd0;
+        data1_r             <= 32'd0;
+        data2_r             <= 32'd0;
+        immediate_r         <= 32'd0;
+        Mem_r               <= 2'd0;
+        WriteBack_r         <= 1'b0;
+        Execution_r         <= 5'd0;
+        PC_r                <= 32'd0;
+        is_branchInst_r     <= 1'b0;
+        taken_r             <= 1'b0;
+        branch_type_r       <= 2'b00;
     end
     else begin
         for(i = 0; i < 32; i = i + 1)
-            register_r[i] <= register_w[i];
-        Rd_r        <= Rd_w;
-        Rs1_o_r     <= Rs1_o_w;
-        Rs2_o_r       <= Rs2_o_w;
-        data1_r     <= data1_w;
-        data2_r     <= data2_w;
-        output_immediate_r <= output_immediate_w;
-        Mem_r       <= Mem_w;
-        WriteBack_r <= WriteBack_w;
-        Execution_r <= Execution_w;
-        PC_r        <= PC_w;
-        is_branchInst_r <= is_branchInst_w;
+            register_r[i]   <= register_w[i];
+        Rd_r                <= Rd_w;
+        Rs1_r               <= Rs1_w;
+        Rs2_r               <= Rs2_w;
+        data1_r             <= data1_w;
+        data2_r             <= data2_w;
+        immediate_r         <= immediate_w;
+        Mem_r               <= Mem_w;
+        WriteBack_r         <= WriteBack_w;
+        Execution_r         <= Execution_w;
+        PC_r                <= PC_w;
+        is_branchInst_r     <= is_branchInst_w;
+        taken_r             <= taken_w;
+        branch_type_r       <= branch_type_w;
     end
 end
 endmodule

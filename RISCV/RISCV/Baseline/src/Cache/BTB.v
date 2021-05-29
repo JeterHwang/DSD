@@ -1,17 +1,18 @@
 module BTB(
     input clk,
     input rst_n,
-    
-    input [31:0]  instructionPC_1,
-    output [31:0] branchPC, // predicted result or updated result
-    output flush,
-    output taken,
+    input memory_stall,
 
+    input [31:0]  instructionPC_1,
     input [31:0] instructionPC_3,
     input        is_branchInst_3,
     input        taken_3,
     input        prev_taken_3,
-    input [31:0] target_3
+    input [31:0] target_3,
+    
+    output [31:0] branchPC, // predicted result or updated result
+    output flush,
+    output taken
 );
     parameter setSize = 64; // 1 + 29 + 32 + 2 
 
@@ -46,10 +47,10 @@ module BTB(
         hit_3       =   btb_r[instructionPC_3[2:0]][63] & 
                           (btb_r[instructionPC_3[2:0]][62:34] == instructionPC_3[31:3]);
         
-        target_wrong3     = is_branchInst_3 & (btb_r[instructionPC_3[2:0]][32:1] != target_3);
+        target_wrong3     = prev_taken_3 & (btb_r[instructionPC_3[2:0]][33:2] != target_3);
         taken_wrong3      = is_branchInst_3 & (prev_taken_3 != taken_3);
 
-        if(is_branchInst_3) begin
+        if(!memory_stall && is_branchInst_3) begin
             if(!hit_3) begin
                 if(taken_3) begin
                     btb_w[instructionPC_3[2:0]][63]     = 1'b1;
@@ -63,11 +64,11 @@ module BTB(
                 //btb_w[instructionPC_3[2:0]][61:33]  = instructionPC_3[31:3];
                 
                 if(!target_wrong3) begin // target correct !!
-                    btb_w[instructionPC_3[2:0]][0]      = history_next;     
+                    btb_w[instructionPC_3[2:0]][1:0]      = history_next;     
                 end
                 else begin
-                    btb_w[instructionPC_3[2:0]][32:1]   = target_3;
-                    btb_w[instructionPC_3[2:0]][0]      = 2'b10; 
+                    btb_w[instructionPC_3[2:0]][33:2]     = target_3;
+                    btb_w[instructionPC_3[2:0]][1:0]      = 2'b10; 
                 end
             end
         end        
@@ -123,10 +124,10 @@ module BTB(
         endcase
     end
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if(!rst_n) begin
             for(i = 0; i < 8; i = i + 1) begin
-                btb_r[i] <= 63'd0;
+                btb_r[i] <= 64'd0;
             end 
         end
         else begin

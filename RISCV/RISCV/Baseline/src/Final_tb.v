@@ -138,7 +138,7 @@ module Final_tb;
 		rst_n = 1'b1;
 		#(`CYCLE*0.2) rst_n = 1'b0;
 		#(`CYCLE*8.5) rst_n = 1'b1;
-     
+
 		#(`CYCLE*10000) // calculate clock cycles for all operation (you can modify it)
 		$display("============================================================================");
 		$display("\n           Error!!! There is something wrong with your code ...!          ");
@@ -152,7 +152,7 @@ module Final_tb;
 	end
 		
 	always #(`CYCLE*0.5) clk = ~clk;
-	
+
 	always@(finish)
 	    if(finish)
 	       #(`CYCLE) $finish;		   

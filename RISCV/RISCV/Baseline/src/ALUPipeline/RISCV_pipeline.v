@@ -24,14 +24,15 @@ module RISCV_Pipeline(
 );
 
 // ==== BTB output ==== //
+wire [31:0] instructionPC_1;
 wire        flush;
 wire        taken;
-wire [31:0] instructionPC_1;
 wire [31:0] branchPC;
 wire [31:0] instructionPC_3;
 wire        is_branchInst_3;
 wire        taken_3;
 wire        prev_taken_3;
+wire [31:0] target_3;
 // ==================== //
 
 // ==== L1 signals ==== //
@@ -94,6 +95,7 @@ assign memory_stall = DCACHE_stall | ICACHE_stall; // either cache stall will st
 BTB btb1(
     .clk(clk),
     .rst_n(rst_n),
+    .memory_stall(memory_stall),
     .instructionPC_1(instructionPC_1),
     .branchPC(branchPC),
     .flush(flush),

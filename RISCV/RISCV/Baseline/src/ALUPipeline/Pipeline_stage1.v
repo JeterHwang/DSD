@@ -17,7 +17,7 @@ module instruction_fetch(
     output        I_ren,         
     
     output [31:0] PC_1,
-    output [31:0] instruction_1
+    output [31:0] instruction_1,
     
     output        prev_taken_1,
     output [31:0] instructionPC_1
@@ -75,12 +75,8 @@ always @(*) begin
                 taken_w     = taken_r;
             end
             else begin
-                taken_w = taken;
-                
-                if(taken) // branch taken
-                    PC_w = branchPC;
-                else
-                    PC_w = PC_r + 4;
+                taken_w     = taken;
+                PC_w        = branchPC;
             end
         end
     end
@@ -137,11 +133,13 @@ always @(posedge clk) begin
         PC_r                <= 32'd0;
         PC_out_r            <= 32'd0;
         instruction_out_r   <= 32'd0;
+        taken_r             <= 1'b0;
     end
     else begin
         PC_r                <= PC_w;
         PC_out_r            <= PC_out_w;
         instruction_out_r   <= instruction_out_w;
+        taken_r             <= taken_w;
     end
 end  
 endmodule

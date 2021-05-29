@@ -143,20 +143,20 @@ end
 always @(*) begin
     case (branch_type_2)
         JAL: begin
-            branch_target   = PC_2 + immediate;
+            branch_target   = $signed(PC_2) + $signed(immediate);
             branch_taken    = 1'b1;
         end
         JALR: begin
-            branch_target   = temp + PC_2;
+            branch_target   = $signed(ALU_in1) + $signed(immediate);
             branch_taken    = 1'b1;
         end
         BEQ: begin
-            branch_target   = PC_2 + immediate;
+            branch_target   = (ALU_result_w == 0) ? $signed(PC_2) + $signed(immediate) : $signed(PC_2) + $signed(4);
             branch_taken    = (ALU_result_w == 0) ? 1'b1 : 1'b0;
         end
         BNE: begin
-            branch_target   = PC_2 + immediate;
-            branch_taken    = (ALU_result_w != 0) ? 1'b1 : 1'b0;;
+            branch_target   = (ALU_result_w != 0) ? $signed(PC_2) + $signed(immediate) : $signed(PC_2) + $signed(4);
+            branch_taken    = (ALU_result_w != 0) ? 1'b1 : 1'b0;
         end
     endcase
 end
@@ -169,7 +169,12 @@ always @(*) begin
     else begin
         case(Execution_2[4:1])
             ADD: begin
-                ALU_result_w = $signed(ALU_in1) + $signed(ALU_in2);
+                if(!branch_type_2[1]) begin // JALR, JAL
+                    ALU_result_w = $signed(PC_2) + $signed(4);
+                end
+                else begin
+                    ALU_result_w = $signed(ALU_in1) + $signed(ALU_in2);
+                end
             end
             SUB: begin
                 ALU_result_w = $signed(ALU_in1) - $signed(ALU_in2);
@@ -197,16 +202,15 @@ always @(*) begin
             end
         endcase    
     end
-    
 end
 
 // ===== passing signals ===== //
 always @(*) begin
-    Mem_w           = memory_stall ? Mem_r : Mem_2;
-    WriteBack_w     = memory_stall ? WriteBack_r : WriteBack_2;
-    Rd_w            = memory_stall ? Rd_r : Rd_2;
+    Mem_w           = memory_stall ? Mem_r          : Mem_2;
+    WriteBack_w     = memory_stall ? WriteBack_r    : WriteBack_2;
+    Rd_w            = memory_stall ? Rd_r           : Rd_2;
     
-    writedata_w     = memory_stall ? writedata_r : temp;
+    writedata_w     = memory_stall ? writedata_r    : temp;
 end
 
 always @(posedge clk) begin
