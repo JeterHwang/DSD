@@ -9,9 +9,6 @@ module instruction_decode(
     input [4:0]   Rd_3,
     input [31:0]  forward_result_4,
     //input [1:0]   Mem_3,
-    //for RVC jal and jalr
-    input         jj_16,
-
 
     input [31:0]  instruction_1,
     input [31:0]  PC_1,
@@ -184,7 +181,7 @@ always @(*) begin
     end
     else begin
         if(instruction_1[2]) //jalr, jal
-            output_immediate_w = jj_16 ? 32'd2 : 32'd4;
+            output_immediate_w = 32'd4;
         else
             output_immediate_w = immediate_w;
     end
