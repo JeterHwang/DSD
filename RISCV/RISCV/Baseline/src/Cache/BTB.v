@@ -14,7 +14,7 @@ module BTB(
     output flush,
     output taken
 );
-    parameter setSize = 64; // 1 + 29 + 32 + 2 
+    parameter setSize = 62; // 1 + 27 + 32 + 2 
 
     // BTB cache
     reg [setSize - 1 : 0] btb_r [0:7];
@@ -37,64 +37,9 @@ module BTB(
     assign flush        = flush_w;
     assign taken        = taken_w;
     
-    // ===== Update BTB ===== //
-    always @(*) begin
-        for(i = 0; i < 8; i = i + 1) begin
-            btb_w[i] = btb_r[i];
-        end
-        hit_1       =   btb_r[instructionPC_1[2:0]][63] & 
-                          (btb_r[instructionPC_1[2:0]][62:34] == instructionPC_1[31:3]);
-        hit_3       =   btb_r[instructionPC_3[2:0]][63] & 
-                          (btb_r[instructionPC_3[2:0]][62:34] == instructionPC_3[31:3]);
-        
-        target_wrong3     = prev_taken_3 & (btb_r[instructionPC_3[2:0]][33:2] != target_3);
-        taken_wrong3      = is_branchInst_3 & (prev_taken_3 != taken_3);
-
-        if(!memory_stall && is_branchInst_3) begin
-            if(!hit_3) begin
-                if(taken_3) begin
-                    btb_w[instructionPC_3[2:0]][63]     = 1'b1;
-                    btb_w[instructionPC_3[2:0]][62:34]  = instructionPC_3[31:3];
-                    btb_w[instructionPC_3[2:0]][33:2]   = target_3;
-                    btb_w[instructionPC_3[2:0]][1:0]    = 2'b10;     
-                end
-            end
-            else begin
-                //btb_w[instructionPC_3[2:0]][62]     = 1'b1;
-                //btb_w[instructionPC_3[2:0]][61:33]  = instructionPC_3[31:3];
-                
-                if(!target_wrong3) begin // target correct !!
-                    btb_w[instructionPC_3[2:0]][1:0]      = history_next;     
-                end
-                else begin
-                    btb_w[instructionPC_3[2:0]][33:2]     = target_3;
-                    btb_w[instructionPC_3[2:0]][1:0]      = 2'b10; 
-                end
-            end
-        end        
-    end
-
-    // ===== BranchPC logic ===== //
-    always @(*) begin
-        
-        taken_w = hit_1 & btb_r[instructionPC_1[2:0]][1];
-        
-        if(taken_wrong3 || target_wrong3) begin // Previous branch taken wrong 
-            branchPC_w  = target_3; // new PC
-            flush_w     = 1'b1;
-        end
-        else begin
-            if(taken_w)
-                branchPC_w = btb_r[instructionPC_1[2:0]][33:2]; // Predicted taken !!
-            else 
-                branchPC_w = instructionPC_1 + 4; // Predicted NOT Taken !!
-            flush_w = 1'b0;
-        end
-    end
-
     // ===== Branch Prediction FSM ===== //
     always @(*) begin
-        history_3   =   btb_w[instructionPC_3[2:0]][1:0];
+        history_3   =   btb_w[instructionPC_3[4:2]][1:0];
         
         case (history_3)
             2'b00: begin
@@ -124,10 +69,65 @@ module BTB(
         endcase
     end
 
+    // ===== Update BTB ===== //
+    always @(*) begin
+        for(i = 0; i < 8; i = i + 1) begin
+            btb_w[i] = btb_r[i];
+        end
+        hit_1       =   btb_r[instructionPC_1[4:2]][61] & 
+                          (btb_r[instructionPC_1[4:2]][60:34] == instructionPC_1[31:5]);
+        hit_3       =   btb_r[instructionPC_3[4:2]][61] & 
+                          (btb_r[instructionPC_3[4:2]][60:34] == instructionPC_3[31:5]);
+        
+        target_wrong3     = prev_taken_3 & (btb_r[instructionPC_3[4:2]][33:2] != target_3);
+        taken_wrong3      = is_branchInst_3 & (prev_taken_3 != taken_3);
+
+        if(!memory_stall && is_branchInst_3) begin
+            if(!hit_3) begin
+                if(taken_3) begin
+                    btb_w[instructionPC_3[4:2]][61]     = 1'b1;
+                    btb_w[instructionPC_3[4:2]][60:34]  = instructionPC_3[31:5];
+                    btb_w[instructionPC_3[4:2]][33:2]   = target_3;
+                    btb_w[instructionPC_3[4:2]][1:0]    = 2'b10;     
+                end
+            end
+            else begin
+                //btb_w[instructionPC_3[2:0]][62]     = 1'b1;
+                //btb_w[instructionPC_3[2:0]][61:33]  = instructionPC_3[31:3];
+                
+                if(!target_wrong3) begin // target correct !!
+                    btb_w[instructionPC_3[4:2]][1:0]      = history_next;     
+                end
+                else begin
+                    btb_w[instructionPC_3[4:2]][33:2]     = target_3;
+                    btb_w[instructionPC_3[4:2]][1:0]      = 2'b10; 
+                end
+            end
+        end        
+    end
+
+    // ===== BranchPC logic ===== //
+    always @(*) begin
+        
+        taken_w = hit_1 & btb_r[instructionPC_1[4:2]][1];
+        
+        if(taken_wrong3 || target_wrong3) begin // Previous branch taken wrong 
+            branchPC_w  = target_3; // new PC
+            flush_w     = 1'b1;
+        end
+        else begin
+            if(taken_w)
+                branchPC_w = btb_r[instructionPC_1[4:2]][33:2]; // Predicted taken !!
+            else 
+                branchPC_w = instructionPC_1 + 4; // Predicted NOT Taken !!
+            flush_w = 1'b0;
+        end
+    end
+
     always @(posedge clk) begin
         if(!rst_n) begin
             for(i = 0; i < 8; i = i + 1) begin
-                btb_r[i] <= 64'd0;
+                btb_r[i] <= 62'd0;
             end 
         end
         else begin
