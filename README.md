@@ -21,6 +21,13 @@ b07901018 柯建廷
 ```
 RTL:
     ncverilog Final_tb.v CHIP.v slow_memory.v +define+noHazard +access+r
+    ncverilog Final_tb.v CHIP.v slow_memory.v +define+hasHazard +access+r
+```
+
+## Synthesis Command
+```
+read_file –format verilog CHIP.v
+source CHIP_syn.sdc
 ```
 
 ## Git usage

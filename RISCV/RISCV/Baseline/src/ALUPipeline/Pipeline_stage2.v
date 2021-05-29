@@ -365,7 +365,10 @@ always @(*) begin
                 end
             end    
             3'b001: begin
-                ALUOp = SUB;
+                if(instruction_1[6]) // BNE
+                    ALUOp = SUB;
+                else
+                    ALUOp = SLL;
             end
             3'b010: begin
                 if(instruction_1[4])
