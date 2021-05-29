@@ -33,11 +33,8 @@ assign instruction_little= {instruction_in[7:0],instruction_in[15:8],instruction
 
 
 
-reg  [31:0] instruction;//real output instruction 
-always @(*) begin
-    if (instruction_little == 32'b0) instruction = 32'h00000013 ; //initialize but can ignore?
-    else instruction = instruction_little ;
-end
+wire  [31:0] instruction;//real output instruction 
+assign instruction = instruction_little ;
 
 // ===== PC ===== //
 always @(*) begin
