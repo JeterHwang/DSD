@@ -3,7 +3,7 @@
 `include "./ALUPipeline/Pipeline_stage3.v"
 `include "./ALUPipeline/Pipeline_stage4.v"
 `include "./ALUPipeline/Pipeline_stage5.v"
-
+`include "./Cache/BTB.v"
 module RISCV_Pipeline(
     input clk,
     input rst_n,
@@ -23,14 +23,26 @@ module RISCV_Pipeline(
     input  [31:0] DCACHE_rdata
 );
 
+// ==== BTB output ==== //
+wire [31:0] instructionPC_1;
+wire        flush;
+wire        taken;
+wire [31:0] branchPC;
+wire [31:0] instructionPC_3;
+wire        is_branchInst_3;
+wire        taken_3;
+wire        prev_taken_3;
+wire [31:0] target_3;
+// ==================== //
+
 // ==== L1 signals ==== //
 // input
 wire [31:0] instruction_in;
 wire        memory_stall; 
 // output
 wire [31:0] PC_1;
-wire        jj_16;
 wire [31:0] instruction_1;
+wire        prev_taken_1;
 // ====================//
 
 // ==== L2 signals ==== //
@@ -41,14 +53,15 @@ wire [4:0]  Rs2_2;
 wire [31:0] data1;
 wire [31:0] data2;
 wire [31:0] immediate;
+wire        is_branchInst_2;
+wire [1:0]  branch_type_2;
+wire [31:0] PC_2;
+wire        prev_taken_2;
 wire [1:0]  Mem_2;
 wire        WriteBack_2;
 wire [4:0]  Execution_2;
-wire [31:0] branch_address;
 wire [31:0] IF_DWrite;
-wire        IF_flush;
 wire        PC_write;
-wire        PC_src;
 // ==================== //
 
 // ==== L3 signals ==== //
@@ -79,21 +92,37 @@ assign ICACHE_wen   = 1'b0;
 assign ICACHE_wdata = 32'd0;
 assign memory_stall = DCACHE_stall | ICACHE_stall; // either cache stall will stall the whole pipeline
 
-instruction_fetch stage1(
+BTB btb1(
     .clk(clk),
     .rst_n(rst_n),
     .memory_stall(memory_stall),
+    .instructionPC_1(instructionPC_1),
+    .branchPC(branchPC),
+    .flush(flush),
+    .taken(taken),
+    .instructionPC_3(instructionPC_3),
+    .is_branchInst_3(is_branchInst_3),
+    .taken_3(taken_3),
+    .prev_taken_3(prev_taken_3),
+    .target_3(target_3)
+);
+
+instruction_fetch stage1(
+    .clk(clk),
+    .rst_n(rst_n),
+    .flush(flush),
+    .taken(taken),
+    .branchPC(branchPC),
+    .memory_stall(memory_stall),
     .IF_DWrite(IF_DWrite),
-    .IF_flush(IF_flush),
     .PC_write(PC_write),
-    .PC_src(PC_src),
     .instruction_in(ICACHE_rdata),
-    .branch_address(branch_address),
     .I_addr(ICACHE_addr),
     .I_ren(ICACHE_ren),
     .PC_1(PC_1),
-    .jj_16(jj_16),
-    .instruction_1(instruction_1)
+    .instruction_1(instruction_1),
+    .prev_taken_1(prev_taken_1),
+    .instructionPC_1(instructionPC_1)
 );
 
 instruction_decode stage2(
@@ -103,9 +132,8 @@ instruction_decode stage2(
     .WriteBack_5(Wb_5),
     .write_data(Wd_5),
     .write_address(Rd_5),
-    .Rd_3(Rd_3),
-    .forward_result_4(forward_result_4),
-    .jj_16(jj_16),
+    .prev_taken_1(prev_taken_1),
+    .flush(flush),
     .instruction_1(instruction_1),
     .PC_1(PC_1),
     .Rd_2(Rd_2),
@@ -114,14 +142,15 @@ instruction_decode stage2(
     .data1(data1),
     .data2(data2),
     .immediate(immediate), 
+    .is_branchInst_2(is_branchInst_2),
+    .branch_type_2(branch_type_2),
+    .PC_2(PC_2),
+    .prev_taken_2(prev_taken_2),
     .Mem_2(Mem_2),
     .WriteBack_2(WriteBack_2),
     .Execution_2(Execution_2), 
-    .branch_address(branch_address),
     .IF_DWrite(IF_DWrite),
-    .IF_flush(IF_flush),
-    .PC_write(PC_write),
-    .PC_src(PC_src)
+    .PC_write(PC_write)
 );
 
 Execution stage3(
@@ -134,6 +163,10 @@ Execution stage3(
     .Rs1_2(Rs1_2),
     .Rs2_2(Rs2_2),
     .Rd_2(Rd_2),
+    .is_branchInst_2(is_branchInst_2),
+    .branch_type_2(branch_type_2),
+    .PC_2(PC_2),
+    .prev_taken_2(prev_taken_2),
     .WriteBack_2(WriteBack_2),
     .Mem_2(Mem_2),
     .Execution_2(Execution_2),  
@@ -144,7 +177,12 @@ Execution stage3(
     .Mem_3(Mem_3),
     .ALU_result_3(ALU_result_3),
     .writedata_3(writedata_3),
-    .Rd_3(Rd_3)
+    .Rd_3(Rd_3),
+    .target_3(target_3),
+    .instructionPC_3(instructionPC_3),
+    .is_branchInst_3(is_branchInst_3),
+    .taken_3(taken_3),
+    .prev_taken_3(prev_taken_3)
 );
 
 Memory stage4(
