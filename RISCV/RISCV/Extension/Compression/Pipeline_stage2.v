@@ -6,8 +6,6 @@ module instruction_decode(
     input [31:0]  write_data,
     input [4:0]   write_address, // Rd_5
     
-    //input         jj_16, //for RVC jal and jalr
-    
     input         prev_taken_1,
     input         flush,
 
