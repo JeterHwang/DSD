@@ -49,6 +49,7 @@ wire        prev_taken_1;
 
 // ==== L2 signals ==== //
 // output
+wire        jj_o;
 wire [4:0]  Rd_2;
 wire [4:0]  Rs1_2;
 wire [4:0]  Rs2_2;
@@ -136,6 +137,8 @@ instruction_decode stage2(
     .WriteBack_5(Wb_5),
     .write_data(Wd_5),
     .write_address(Rd_5),
+    .jj_i(jj_16),
+    .jj_o(jj_o),
     .prev_taken_1(prev_taken_1),
     .flush(flush),
     .instruction_1(instruction_1),
@@ -167,7 +170,7 @@ Execution stage3(
     .Rs1_2(Rs1_2),
     .Rs2_2(Rs2_2),
     .Rd_2(Rd_2),
-    .jj_16(jj_16),
+    .jj_16(jj_o),
     .is_branchInst_2(is_branchInst_2),
     .branch_type_2(branch_type_2),
     .PC_2(PC_2),
