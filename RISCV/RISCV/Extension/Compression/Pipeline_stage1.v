@@ -73,7 +73,7 @@ reg         L_r;
 wire        L_w;
 
 //Fox_control_unit
-assign PC_offset   = (L_w) ? 4 : 2;
+//assign PC_offset   = (L_w) ? 4 : 2;
 assign PC_offset_b = (L_r) ? 4 : 2;
 assign opt1        = inst_buffer_r[1]&inst_buffer_r[0];
 assign L_w   = (B_r)? (opt1) : (instruction_little[1]&instruction_little[0]); 
