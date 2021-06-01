@@ -41,6 +41,7 @@ wire [31:0] instruction_in;
 wire        memory_stall; 
 // output
 wire        jj_16;
+wire        B_R;
 wire [31:0] PC_1;
 wire [31:0] instruction_1;
 wire        prev_taken_1;
@@ -124,7 +125,8 @@ instruction_fetch stage1(
     .instruction_1(instruction_1),
     .prev_taken_1(prev_taken_1),
     .instructionPC_1(instructionPC_1),
-    .jj_16(jj_16)
+    .jj_16(jj_16),
+    .B_R(B_R)
 );
 
 instruction_decode stage2(
