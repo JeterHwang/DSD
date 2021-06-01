@@ -128,7 +128,7 @@ instruction_fetch stage1(
     .prev_taken_1(prev_taken_1),
     .instructionPC_1(instructionPC_1),
     .jj_16(jj_16),
-    .L_W(L_W)
+    .LW(L_W)
 );
 
 instruction_decode stage2(
