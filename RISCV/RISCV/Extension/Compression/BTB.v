@@ -2,6 +2,9 @@ module BTB(
     input clk,
     input rst_n,
     input memory_stall,
+    
+    //for RVC
+    input L_W,
 
     input [31:0]  instructionPC_1,
     input [31:0] instructionPC_3,
@@ -119,7 +122,7 @@ module BTB(
             if(taken_w)
                 branchPC_w = btb_r[instructionPC_1[4:2]][33:2]; // Predicted taken !!
             else 
-                branchPC_w = instructionPC_1 + 4; // Predicted NOT Taken !!
+                branchPC_w = (L_W)?(instructionPC_1 + 4):(instructionPC_1 + 2); // Predicted NOT Taken !!
             flush_w = 1'b0;
         end
     end
