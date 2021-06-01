@@ -40,6 +40,7 @@ wire [31:0] target_3;
 wire [31:0] instruction_in;
 wire        memory_stall; 
 // output
+wire        jj_16;
 wire [31:0] PC_1;
 wire [31:0] instruction_1;
 wire        prev_taken_1;
@@ -122,7 +123,8 @@ instruction_fetch stage1(
     .PC_1(PC_1),
     .instruction_1(instruction_1),
     .prev_taken_1(prev_taken_1),
-    .instructionPC_1(instructionPC_1)
+    .instructionPC_1(instructionPC_1),
+    .jj_16(jj_16)
 );
 
 instruction_decode stage2(
@@ -163,6 +165,7 @@ Execution stage3(
     .Rs1_2(Rs1_2),
     .Rs2_2(Rs2_2),
     .Rd_2(Rd_2),
+    .jj_16(jj_16),
     .is_branchInst_2(is_branchInst_2),
     .branch_type_2(branch_type_2),
     .PC_2(PC_2),
