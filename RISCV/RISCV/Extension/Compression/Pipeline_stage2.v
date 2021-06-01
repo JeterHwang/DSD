@@ -6,6 +6,10 @@ module instruction_decode(
     input [31:0]  write_data,
     input [4:0]   write_address, // Rd_5
     
+    //For RVC
+    input         jj_i,
+    output        jj_o,
+    
     input         prev_taken_1,
     input         flush,
 
@@ -61,6 +65,8 @@ reg [31:0] register_r [0:31];
 reg [31:0] register_w [0:31];
 
 // regs 
+reg        jj_r;
+wire       jj_w;
 reg [4:0]  Rd_r, Rd_w;
 reg [4:0]  Rs1_r, Rs1_w;
 reg [4:0]  Rs2_r, Rs2_w;
@@ -86,6 +92,9 @@ reg [3:0]  ALUOp;
 reg        ALUsrc;
 reg        data_hazard;
 
+assign jj_w = jj_i;
+assign jj_o = jj_r;
+    
 assign Rd_2             = Rd_r;
 assign Rs1_2            = Rs1_r;
 assign Rs2_2            = Rs2_r;
@@ -410,6 +419,7 @@ always @(posedge clk) begin
     if(!rst_n) begin
         for(i = 0; i < 32; i = i + 1)
             register_r[i]   <= 32'd0;
+        jj_r                <= 1'b0;
         Rd_r                <= 5'd0;
         Rs1_r               <= 5'd0;
         Rs2_r               <= 5'd0;
@@ -427,6 +437,7 @@ always @(posedge clk) begin
     else begin
         for(i = 0; i < 32; i = i + 1)
             register_r[i]   <= register_w[i];
+        jj_r                <= jj_w;
         Rd_r                <= Rd_w;
         Rs1_r               <= Rs1_w;
         Rs2_r               <= Rs2_w;
