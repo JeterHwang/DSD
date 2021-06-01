@@ -23,7 +23,7 @@ module instruction_fetch(
     output [31:0] instructionPC_1,
     //for RVC
     output        jj_16,
-    output        B_R
+    output        LW
 );
 
 // regs
@@ -44,14 +44,13 @@ wire[29:0] PC_plus1;
 wire       opt1;
 
 
-assign B_R                  = B_r;
 assign PC_1                 = PC_out_r;
 assign instruction_1        = instruction_out_r;
 assign I_addr               = I_addr_w;
 assign I_ren                = I_ren_w;
 assign instruction_little   = (instruction_in == 32'b0)? 32'h00000013 :{instruction_in[7:0],instruction_in[15:8],instruction_in[23:16],instruction_in[31:24]}; //instruction with little_end
 assign jj_16                = jj_r;
-assign jj_w                 = (PC_src)?(jj_r):(jj);
+assign jj_w                 = (flush)?(jj_r):(jj);
 assign PC_plus1             = PC_r[31:2]+30'd1;
 assign prev_taken_1         = taken_r;
 assign instructionPC_1      = PC_r;
@@ -79,7 +78,7 @@ assign opt1        = inst_buffer_r[1]&inst_buffer_r[0];
 assign L_w   = (B_r)? (opt1) : (instruction_little[1]&instruction_little[0]); 
 assign sel_g = {B_r,L_w};
 assign inst_buffer_w = (B_r^L_w)?(inst_buffer_r):(instruction_little[31:16]);
-
+assign LW            = L_w;
 //Decompressor
 assign inst_16 = (B_r)? (inst_buffer_r[15:0]):(instruction_little[15:0]);
 Decompressor decompressor(.inst_16(inst_16),.inst_32(inst_32),.jj(jj));
@@ -87,12 +86,12 @@ Decompressor decompressor(.inst_16(inst_16),.inst_32(inst_32),.jj(jj));
 //Main_Logic
 always @(*) begin
     B_w = 1'b0;                       
-    if (PC_stall) begin
+    if (memory_stall) begin
         B_w = B_r;   
         instruction = 32'h00000013;  
     end
     else begin
-        if(PC_src) begin // branch taken
+        if(flush) begin // branch taken
             B_w = 1'b0;
             instruction = 32'h00000013;
         end
@@ -203,7 +202,7 @@ end
 // ===== I_cache ===== //
 always @(*) begin
     I_ren_w              = 1'b1;  // always reading I_cache
-    if (PC_src) I_addr_w = PC_r[31:2];
+    if (flush) I_addr_w = PC_r[31:2];
     else I_addr_w = (B_r&opt1) ? (PC_plus1):PC_r[31:2];
 end
 
