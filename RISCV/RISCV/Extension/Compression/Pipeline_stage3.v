@@ -9,6 +9,9 @@ module Execution(
     input [4:0]   Rs2_2,
     input [4:0]   Rd_2,
     
+    //for RVC jal and jalr
+    input         jj_16, 
+    
     input         is_branchInst_2,
     input [1:0]   branch_type_2,
     input [31:0]  PC_2,
@@ -151,11 +154,13 @@ always @(*) begin
             branch_taken    = 1'b1;
         end
         BEQ: begin
-            branch_target   = (ALU_result_w == 0) ? $signed(PC_2) + $signed(immediate) : $signed(PC_2) + $signed(4);
+            branch_target   = (ALU_result_w == 0) ? $signed(PC_2) + $signed(immediate) : 
+                              (jj_16)             ? ($signed(PC_2) + $signed(2)):($signed(PC_2) + $signed(4));
             branch_taken    = (ALU_result_w == 0) ? 1'b1 : 1'b0;
         end
         BNE: begin
-            branch_target   = (ALU_result_w != 0) ? $signed(PC_2) + $signed(immediate) : $signed(PC_2) + $signed(4);
+            branch_target   = (ALU_result_w != 0) ? $signed(PC_2) + $signed(immediate) : 
+                              (jj_16)             ? ($signed(PC_2) + $signed(2)):($signed(PC_2) + $signed(4));
             branch_taken    = (ALU_result_w != 0) ? 1'b1 : 1'b0;
         end
     endcase
@@ -170,7 +175,7 @@ always @(*) begin
         case(Execution_2[4:1])
             ADD: begin
                 if(!branch_type_2[1]) begin // JALR, JAL
-                    ALU_result_w = $signed(PC_2) + $signed(4);
+                    ALU_result_w = (jj_16)?($signed(PC_2) + $signed(2)):($signed(PC_2) + $signed(4));
                 end
                 else begin
                     ALU_result_w = $signed(ALU_in1) + $signed(ALU_in2);
