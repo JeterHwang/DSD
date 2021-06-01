@@ -41,7 +41,7 @@ wire [31:0] instruction_in;
 wire        memory_stall; 
 // output
 wire        jj_16;
-wire        B_R;
+wire        L_W;
 wire [31:0] PC_1;
 wire [31:0] instruction_1;
 wire        prev_taken_1;
@@ -99,6 +99,7 @@ BTB btb1(
     .clk(clk),
     .rst_n(rst_n),
     .memory_stall(memory_stall),
+    .L_W(L_W),
     .instructionPC_1(instructionPC_1),
     .branchPC(branchPC),
     .flush(flush),
@@ -127,7 +128,7 @@ instruction_fetch stage1(
     .prev_taken_1(prev_taken_1),
     .instructionPC_1(instructionPC_1),
     .jj_16(jj_16),
-    .B_R(B_R)
+    .L_W(L_W)
 );
 
 instruction_decode stage2(
