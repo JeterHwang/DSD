@@ -6,7 +6,7 @@ module BTB(
     //for RVC
     input L_W,
 
-    input [31:0]  instructionPC_1,
+    input [31:0] instructionPC_1,
     input [31:0] instructionPC_3,
     input        is_branchInst_3,
     input        taken_3,
@@ -112,7 +112,7 @@ module BTB(
     // ===== BranchPC logic ===== //
     always @(*) begin
         
-        taken_w = hit_1 & btb_r[instructionPC_1[4:2]][1];
+        taken_w = hit_1 & btb_r[instructionPC_1[4:2]][1] & is_branchInst_3;
         
         if(taken_wrong3 || target_wrong3) begin // Previous branch taken wrong 
             branchPC_w  = target_3; // new PC

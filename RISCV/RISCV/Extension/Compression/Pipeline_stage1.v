@@ -50,17 +50,17 @@ assign I_addr               = I_addr_w;
 assign I_ren                = I_ren_w;
 assign instruction_little   = (instruction_in == 32'b0)? 32'h00000013 :{instruction_in[7:0],instruction_in[15:8],instruction_in[23:16],instruction_in[31:24]}; //instruction with little_end
 assign jj_16                = jj_r;
-assign jj_w                 = (flush)?(jj_r):(jj);
+//assign jj_16                = (memory_stall)?(jj_r):(jj);//
+assign jj_w                 = (jj);//
 assign PC_plus1             = PC_r[31:2]+30'd1;
 assign prev_taken_1         = taken_r;
 assign instructionPC_1      = PC_r;
 
 
-
 // ===== RVC ===== //
 // wires
 wire [1:0]  sel_g;
-wire [2:0]  PC_offset,PC_offset_b;
+wire [2:0]  PC_offset_b;
 wire [15:0] inst_16;
 wire [31:0] inst_32;
 
@@ -72,7 +72,8 @@ reg         L_r;
 wire        L_w;
 
 //Fox_control_unit
-//assign PC_offset   = (L_w) ? 4 : 2;
+wire [2:0] PC_offset;
+assign PC_offset   = (L_w) ? 4 : 2;
 assign PC_offset_b = (L_r) ? 4 : 2;
 assign opt1        = inst_buffer_r[1]&inst_buffer_r[0];
 assign L_w   = (B_r)? (opt1) : (instruction_little[1]&instruction_little[0]); 
@@ -95,26 +96,34 @@ always @(*) begin
             B_w = 1'b0;
             instruction = 32'h00000013;
         end
-        else begin //PC+4or2
-            case (sel_g)
-                2'b01:begin                  //I_address conti
-                    B_w = 1'b0;          
-                    instruction   = instruction_little;
-                end 
-                2'b00:begin                  //I_address conti
-                    B_w = 1'b1;          
-                    instruction   = inst_32;
-                end 
-                2'b11:begin                  //I_address conti
-                    B_w = 1'b1;                       
-                    instruction   = {instruction_little[15:0],inst_buffer_r};
-                end
-                2'b10:begin                  //I_address stall
-                    B_w = 1'b0;                       
-                    instruction   = inst_32;
-                end
-            endcase
-        end 
+        else begin
+            if (PC_write) begin
+                B_w = B_r;   
+                instruction = 32'h00000013;  
+            end
+            else begin //PC+4or2
+                case (sel_g)
+                    2'b01:begin                  //I_address conti
+                        B_w = 1'b0;          
+                        instruction   = instruction_little;
+                    end 
+                    2'b00:begin                  //I_address conti
+                        if (taken) B_w = 1'b0;                                                      
+                        else B_w = 1'b1;              
+                        instruction   = inst_32;
+                    end 
+                    2'b11:begin 
+                        instruction   = {instruction_little[15:0],inst_buffer_r};
+                        if (taken) B_w = 1'b0;                                                      
+                        else B_w = 1'b1;                       
+                    end
+                    2'b10:begin                  //I_address stall                      
+                        instruction   = inst_32;
+                        B_w = 1'b0;    
+                    end
+                endcase
+            end 
+        end
     end       
 end
 
@@ -202,8 +211,27 @@ end
 // ===== I_cache ===== //
 always @(*) begin
     I_ren_w              = 1'b1;  // always reading I_cache
+    
+    /*
     if (flush) I_addr_w = PC_r[31:2];
     else I_addr_w = (B_r&opt1) ? (PC_plus1):PC_r[31:2];
+    */
+    if(memory_stall) begin
+        I_addr_w = (B_r&opt1) ? (PC_plus1):PC_r[31:2];
+    end
+    else begin
+        if(flush) begin // branch hazard(insert NOP)
+            I_addr_w = PC_r[31:2];  
+        end
+        else begin
+            if(PC_write) begin // load-use hazard
+                I_addr_w = (B_r&opt1) ? (PC_plus1):PC_r[31:2];
+            end
+            else begin
+                I_addr_w = (B_r&opt1) ? (PC_plus1):PC_r[31:2];
+            end
+        end
+    end
 end
 
 always @(posedge clk) begin
