@@ -1,5 +1,5 @@
-`include "./Cache/L2.v"
-`include "./Cache/L1.v"
+`include "./Cache/L2_h.v"
+`include "./Cache/L1_wb.v"
 module cache(
     clk,
     proc_reset,
