@@ -1,6 +1,6 @@
 13_00_00_00  //NOP                        //0x000//
-13_01_41_01  //addi x2,x2,20              //0x004//     addi    sp, sp, 20
-13_05_85_01  //addi x10,x10,24            //0x008//     addi    a0, a0, 24
+13_01_C1_1F  //addi x2,x2,508             //0x004//     addi    sp, sp, 508
+13_05_05_20  //addi x10,x10,512           //0x008//     addi    a0, a0, 512
 93_05_00_00  //addi x11,x0,0              //0x00C//   	addi	a1, x0, 0
 13_06_86_00  //addi x12,x12,8             //0x010//     addi    a2, a2, 8
 13_06_F6_FF  //addi x12,x12,-1            //0x014//   	addi	a2, a2, -1
@@ -21,7 +21,7 @@
 13_0B_90_00  //addi x22,x0,9              //0x050//
 23_2E_65_01  //sw x22,28(x10)             //0x054//                
 EF_00_80_00  //jal x1,8                   //0x058//    	jal	ra, mergeSort
-23_20_05_20  //sw x0,512(x10)             //0x05C//     ending signal
+23_2E_00_3E  //sw x0,1020(x0)             //0x05C//     ending signal
 13_01_C1_FE  //addi x2,x2,-20             //0x060//  	addi 	sp, sp, -20                                     // mergeSort
 23_20_11_00  //sw x1,0(x2)                //0x064//   	sw	ra, 0(sp)
 13_04_05_00  //addi x8,x10,0              //0x068//  	addi	s0, a0, 0	    # s0 : &addr
@@ -89,7 +89,7 @@ B3_A2_7E_00  //slt x5,x29,x7              //0x15C//  	slt	t0, t4, t2				# t0 = (
 33_23_CF_01  //slt x6,x30,x28             //0x160//  	slt	t1, t5, t3				# t1 = (right terminate(t5) < right index(t3))
 B3_E2_62_00  //or x5,x5,x6                //0x164//  	or	t0, t0, t1				# t0 = t0 || t1
 93_C2_12_00  //xori x5,x5,1               //0x168//  	xori t0, t0, 0x1			# t0 = ~t0
-63_80_02_06  //beq x5,x0,104              //0x16C//  	beq	t0, x0, endMergeLoop	# if((t0||t1) != 0), else go to label(endMergeLoop)
+63_84_02_06  //beq x5,x0,104              //0x16C//  	beq	t0, x0, endMergeLoop	# if((t0||t1) != 0), else go to label(endMergeLoop)
 B3_82_73_00  //add x5,x7,x7               //0x170//  	add	t0, t2, t2				# offset_space(t0) = left_index(t2)*2
 B3_82_52_00  //add x5,x5,x5               //0x174//  	add	t0, t0, t0				# offset_space(t0) = offset_space(t0)*2 = left_index(t2)*4
 B3_02_51_00  //add x5,x2,x5               //0x178//  	add	t0, sp, t0				# left_addr(t0) = initial_addr(sp) + offset_space(t0)

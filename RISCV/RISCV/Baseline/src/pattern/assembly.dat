@@ -1,6 +1,6 @@
 addi x0,x0,0                      
-addi x2,x2,20                   
-addi x10,x10,24                 
+addi x2,x2,508                  
+addi x10,x10,512                 
 addi x11,x0,0                 	
 addi x12,x12,8                  
 addi x12,x12,-1               	
@@ -21,7 +21,7 @@ sw x22,24(x10)
 addi x22,x0,9              
 sw x22,28(x10)                             
 jal x1,8                       	
-sw x0,512(x10)                  
+sw x0,1020(x0)               
 addi x2,x2,-20               	
 sw x1,0(x2)                   	
 addi x8,x10,0                	

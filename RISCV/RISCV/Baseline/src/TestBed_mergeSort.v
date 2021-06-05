@@ -1,8 +1,8 @@
 `timescale 1 ns/10 ps
-`define EndAddr     32'd134	 // 536 / 4
-`define MemSize     16       // 8 array numbers
-`define Arrbegin    6
-`define Arrend      13
+`define EndAddr     32'd255	 // 536 / 4
+`define MemSize     8       // 8 array numbers
+`define Arrbegin    128
+`define Arrend      136
 `define golden     "./pattern/sortedArray.dat"
 
 module	TestBed(
@@ -30,8 +30,8 @@ module	TestBed(
 
 	reg     [1:0]   curstate;
 
-	reg     [31:0]  sortedArr [0 : `MemSize - 1];
-	reg		[31:0]	mem_answer [0:255];
+	reg signed [31:0] sortedArr  [0 : `MemSize - 1];
+	reg	signed [31:0] mem_answer [0:255];
 
 	wire    [31:0]  data_modify;
 		
@@ -50,11 +50,11 @@ module	TestBed(
 	always@(posedge wen) begin
 		if(addr == `EndAddr) begin
 			$display("--------------------------- Simulation FINISH !!---------------------------");
-			for(i = `Arrbegin; i <= `Arrend; i = i + 1) begin
-				if(mem_answer[i] !== sortedArr[i]) begin
+			for(i = `Arrbegin; i < `Arrend; i = i + 1) begin
+				if(mem_answer[i] !== sortedArr[i - `Arrbegin]) begin
 					if(i == 0)
 						$display("Error !!\n");
-					$display("Element #%d : expected %d while got %d\n", i, sortedArr[i], mem_answer[i]);
+					$display("Element #%d : expected %d while got %d\n", i - `Arrbegin + 1, sortedArr[i - `Arrbegin], mem_answer[i]);
 					error_num = error_num + 1;
 				end
 			end
