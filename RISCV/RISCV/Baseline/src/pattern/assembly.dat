@@ -28,7 +28,7 @@ addi x8,x10,0
 addi x9,x11,0                 	
 addi x18,x12,0                	
 slt x22,x9,x18             
-beq x22,x0,116                	
+beq x22,x0,108                	
 add x19,x9,x18                 	
 addi x20,x0,0                 	
 slt x22,x19,x0                  
@@ -89,7 +89,7 @@ slt x5,x29,x7
 slt x6,x30,x28               	
 or x5,x5,x6                  	
 xori x5,x5,1                 	
-beq x5,x0,104                	
+beq x5,x0,100                	
 add x5,x7,x7                 	
 add x5,x5,x5                 	
 add x5,x2,x5                 	
