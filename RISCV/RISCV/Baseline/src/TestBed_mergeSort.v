@@ -8,6 +8,9 @@
 module	TestBed(
 	clk,
 	rst,
+	flush,
+	stall,
+	I_addr,
 	addr,
 	data,
 	wen,
@@ -19,6 +22,9 @@ module	TestBed(
 	input	[29:0]	addr;
 	input	[31:0]	data;
 	input			wen;
+	input           flush;
+	input           stall;
+	input   [29:0]  I_addr;
 
 	output	[7:0]	error_num;
 	output	[15:0]	duration;
@@ -26,6 +32,9 @@ module	TestBed(
 	
 	reg		[7:0]	error_num;
 	reg		[15:0]	duration;
+	reg     [15:0]  instruction_count_r, instruction_count_w;
+	reg     [15:0]  stall_cycles;
+	reg     [15:0]  flush_times;
 	reg				finish;
 
 	reg     [1:0]   curstate, nxtstate;
@@ -47,6 +56,8 @@ module	TestBed(
 	initial begin
 		error_num 	= 0;
 		duration 	= 0;
+		flush_times = 0;
+		stall_cycles = 0;
 		$readmemh(`golden, sortedArr);
 	end
 
@@ -81,8 +92,18 @@ module	TestBed(
 		endcase
 	end
 
+	always @(I_addr) begin
+		instruction_count_w = instruction_count_r + 1;
+	end
+
 	always@( negedge clk )						
 	begin
+		duration = duration + 1;
+		if(stall)
+			stall_cycles = stall_cycles + 1;
+		if(flush)
+			flush_times = flush_times + 1;
+		
 		if(curstate == state_report) begin
 			$display("--------------------------- Simulation FINISH !!---------------------------");
 			for(i = `Arrbegin; i < `Arrend; i = i + 1) begin
@@ -93,6 +114,10 @@ module	TestBed(
 					error_num = error_num + 1;
 				end
 			end
+			$display("\n=========================== Performance Metric =============================\n");
+			$display("Memory stall rate : %d (stalled) / %d (cycles) = %f%% \n", stall_cycles, duration, stall_cycles * 100.0 / duration );
+			$display("       Flush rste : %d (flushed) / %d (instructions) = %f%% \n",flush_times, instruction_count_r, flush_times * 100.0 / instruction_count_r);
+			$display("============================================================================\n");
 			if (error_num) begin 
 				$display("============================================================================");
 				$display("\n (T_T) FAIL!! The simulation result is FAIL!!! there were %d errors at all.\n", error_num);
@@ -110,12 +135,14 @@ module	TestBed(
 	begin
 		if( ~rst )
 		begin
+			instruction_count_r <= 16'd0;
 			curstate <= state_check;
 			for(i = 0; i < 256; i = i + 1)
 				mem_answer_r[i] <= 32'd0;
 		end
 		else
 		begin
+			instruction_count_r <= instruction_count_w;
 			curstate <= nxtstate;
 			for(i = 0; i < 256; i = i + 1)
 				mem_answer_r[i] <= mem_answer_w[i];

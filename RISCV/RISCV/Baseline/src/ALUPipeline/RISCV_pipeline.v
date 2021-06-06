@@ -20,7 +20,8 @@ module RISCV_Pipeline(
     output [29:0] DCACHE_addr,
     output [31:0] DCACHE_wdata,
     input  DCACHE_stall,
-    input  [31:0] DCACHE_rdata
+    input  [31:0] DCACHE_rdata,
+    output instruction_flush
 );
 
 // ==== BTB output ==== //
@@ -91,7 +92,7 @@ wire        Wb_5;
 assign ICACHE_wen   = 1'b0;
 assign ICACHE_wdata = 32'd0;
 assign memory_stall = DCACHE_stall | ICACHE_stall; // either cache stall will stall the whole pipeline
-
+assign instruction_flush = flush;
 BTB btb1(
     .clk(clk),
     .rst_n(rst_n),

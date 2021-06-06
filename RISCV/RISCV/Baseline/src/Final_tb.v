@@ -60,6 +60,8 @@ module Final_tb;
 	wire [7:0] error_num;
 	wire [15:0] duration;
 	wire finish;	
+	wire instruction_flush;
+	wire memory_stall;
 
 	// Note the design is connected at testbench, include:
 	// 1. CHIP (RISCV + D_cache + I_chache)
@@ -82,10 +84,13 @@ module Final_tb;
 				mem_wdata_I,
 				mem_rdata_I,
 				mem_ready_I,
-//----------for TestBed--------------				
+//----------for TestBed--------------	
+				ICACHE_addr,			
 				DCACHE_addr,
 				DCACHE_wdata,
-				DCACHE_wen
+				DCACHE_wen,
+				instruction_flush,
+				memory_stall
 				);
 	
 	slow_memory slow_memD(
@@ -108,16 +113,32 @@ module Final_tb;
 		.mem_ready  (mem_ready_I)
 	);
 
-	TestBed testbed(
-		.clk        (clk)           ,
-		.rst        (rst_n)         ,
-		.addr       (DCACHE_addr)   ,
-		.data       (DCACHE_wdata)  ,
-		.wen        (DCACHE_wen)    ,
-		.error_num  (error_num)     ,
-		.duration   (duration)      ,
-		.finish     (finish)
-	);
+	`ifdef mergesort 
+		TestBed testbed(
+			.clk        (clk)           ,
+			.rst        (rst_n)         ,
+			.flush      (instruction_flush),
+			.stall      (memory_stall)  ,
+			.I_addr     (ICACHE_addr)   ,
+			.addr       (DCACHE_addr)   ,
+			.data       (DCACHE_wdata)  ,
+			.wen        (DCACHE_wen)    ,
+			.error_num  (error_num)     ,
+			.duration   (duration)      ,
+			.finish     (finish)
+		);
+	`else
+		TestBed testbed(
+			.clk        (clk)           ,
+			.rst        (rst_n)         ,
+			.addr       (DCACHE_addr)   ,
+			.data       (DCACHE_wdata)  ,
+			.wen        (DCACHE_wen)    ,
+			.error_num  (error_num)     ,
+			.duration   (duration)      ,
+			.finish     (finish)
+		);
+	`endif
 	
 `ifdef SDF
     initial $sdf_annotate(`SDFFILE, chip0);

@@ -18,9 +18,12 @@ module CHIP (	clk,
 				mem_rdata_I,
 				mem_ready_I,
 //----------for TestBed--------------				
+				ICACHE_addr,
 				DCACHE_addr, 
 				DCACHE_wdata,
-				DCACHE_wen   
+				DCACHE_wen,
+				instruction_flush,
+				memory_stall   
 			);
 input			clk, rst_n;
 //--------------------------
@@ -39,9 +42,12 @@ output	[127:0]	mem_wdata_I;
 input	[127:0]	mem_rdata_I;
 input			mem_ready_I;
 //----------for TestBed--------------
+output  [29:0]  ICACHE_addr;
 output	[29:0]	DCACHE_addr;
 output	[31:0]	DCACHE_wdata;
 output			DCACHE_wen;
+output  		instruction_flush;
+output          memory_stall;
 //--------------------------
 
 // wire declaration
@@ -59,6 +65,7 @@ wire [31:0] DCACHE_wdata;
 wire        DCACHE_stall;
 wire [31:0] DCACHE_rdata;
 
+assign memory_stall = DCACHE_stall | ICACHE_stall;
 
 //=========================================
 	// Note that the overall design of your RISCV includes:
@@ -84,7 +91,8 @@ wire [31:0] DCACHE_rdata;
 		.DCACHE_addr    (DCACHE_addr)   ,
 		.DCACHE_wdata   (DCACHE_wdata)  ,
 		.DCACHE_stall   (DCACHE_stall)  ,
-		.DCACHE_rdata   (DCACHE_rdata)
+		.DCACHE_rdata   (DCACHE_rdata)  ,
+		.instruction_flush(instruction_flush)
 	);
 	
 
