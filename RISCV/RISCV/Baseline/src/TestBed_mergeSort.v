@@ -36,7 +36,7 @@ module	TestBed(
 	reg     [15:0]  stall_cycles;
 	reg     [15:0]  flush_times;
 	reg				finish;
-
+	reg     [29:0]  prevAddress;
 	reg     [1:0]   curstate, nxtstate;
 
 	reg signed [31:0] sortedArr  [0 : `MemSize - 1];
@@ -64,6 +64,10 @@ module	TestBed(
 	always@(*) begin
 		for(i = 0; i < 256; i = i + 1)
 			mem_answer_w[i] = mem_answer_r[i];
+
+		if(prevAddress !== I_addr)
+			instruction_count_w = instruction_count_r + 1;
+		
 		case (curstate)
 			state_check: begin
 				finish = 1'b0;
@@ -90,10 +94,6 @@ module	TestBed(
 				nxtstate = curstate;
 			end
 		endcase
-	end
-
-	always @(I_addr) begin
-		instruction_count_w = instruction_count_r + 1;
 	end
 
 	always@( negedge clk )						
@@ -136,14 +136,16 @@ module	TestBed(
 		if( ~rst )
 		begin
 			instruction_count_r <= 16'd0;
-			curstate <= state_check;
+			prevAddress			<= 30'd0;
+			curstate 			<= state_check;
 			for(i = 0; i < 256; i = i + 1)
 				mem_answer_r[i] <= 32'd0;
 		end
 		else
 		begin
 			instruction_count_r <= instruction_count_w;
-			curstate <= nxtstate;
+			prevAddress			<= I_addr;
+			curstate 			<= nxtstate;
 			for(i = 0; i < 256; i = i + 1)
 				mem_answer_r[i] <= mem_answer_w[i];
 		end
