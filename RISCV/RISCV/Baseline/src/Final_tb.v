@@ -33,7 +33,11 @@
 	`define IMEM_INIT "I_mem_mergeSort"
 	`include "./TestBed_mergeSort.v"
 `endif
-
+`ifdef noBP
+	`include "./ALUPipeline2/RISCV_pipeline.v"
+`else
+	`include "./ALUPipeline/RISCV_pipeline.v"
+`endif
 module Final_tb;
 
 	reg clk;
@@ -53,6 +57,7 @@ module Final_tb;
 	wire [127:0] mem_rdata_I;
 	wire mem_ready_I;
 	
+	wire [29:0] ICACHE_addr;
 	wire [29:0]	DCACHE_addr;
 	wire [31:0]	DCACHE_wdata;
 	wire 		DCACHE_wen;
