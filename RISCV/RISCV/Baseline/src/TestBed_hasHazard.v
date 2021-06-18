@@ -7,6 +7,10 @@
 module	TestBed(
 	clk,
 	rst,
+	flush,
+	stall,
+	type,
+	I_addr,
 	addr,
 	data,
 	wen,
@@ -18,6 +22,10 @@ module	TestBed(
 	input	[29:0]	addr;
 	input	[31:0]	data;
 	input			wen;
+	input           flush;
+	input           stall;
+	input           type;
+	input   [29:0]  I_addr;
 
 	output	[7:0]	error_num;
 	output	[15:0]	duration;
@@ -36,7 +44,11 @@ module	TestBed(
 	reg		[15:0]	nxtduration;
 	
 	reg				state,state_next;
-
+	reg     [15:0]  instruction_count_r, instruction_count_w;
+	reg     [15:0]  stall_cycles;
+	reg     [15:0]  flush_times;
+	reg     [15:0]  branch_count;
+	reg     [29:0]  prevAddress;
 	wire    [31:0]  data_modify;
 		
 	parameter	state_idle 	= 2'b00;
@@ -44,11 +56,19 @@ module	TestBed(
 	parameter	state_report= 2'b10;	
 
 	assign data_modify = {data[7:0],data[15:8],data[23:16],data[31:24]}; // convert little-endian format to readable format
-		
+	
+	initial begin
+		duration 	= 0;
+		flush_times = 0;
+		stall_cycles = 0;
+		branch_count = 0;
+	end
+	
 	always@( posedge clk or negedge rst )						// State-DFF
 	begin
 		if( ~rst )
 		begin
+			instruction_count_r <= 16'd0;
 			curstate <= state_idle;
 			curaddr  <= 0;
 			duration <= 0;
@@ -58,6 +78,7 @@ module	TestBed(
 		end
 		else
 		begin
+			instruction_count_r <= instruction_count_w;
 			curstate <= nxtstate;
 			curaddr  <= nxtaddr;
 			duration <= nxtduration;
@@ -69,6 +90,8 @@ module	TestBed(
 			
 	always@(*)	// FSM for test
 	begin
+		if(prevAddress !== I_addr)
+			instruction_count_w = instruction_count_r + 1;
 		finish = 1'b0;
 		case( curstate )
 		state_idle: 	begin
@@ -111,8 +134,21 @@ module	TestBed(
 
 	always@( negedge clk )						
 	begin
+		duration = duration + 1;
+		if(stall)
+			stall_cycles = stall_cycles + 1;
+		if(flush)
+			flush_times = flush_times + 1;
+		if(type)
+			branch_count = branch_count + 1;
+
 		if(curstate == state_report) begin
 			$display("--------------------------- Simulation FINISH !!---------------------------");
+			$display("\n=========================== Performance Metric =============================\n");
+			$display("Memory stall rate : %d (stalled) / %d (cycles) = %f%% \n", stall_cycles, duration, stall_cycles * 100.0 / duration );
+			$display("       Flush rate : %d (flushed) / %d (instructions) = %f%% \n",flush_times, instruction_count_r, flush_times * 100.0 / instruction_count_r);
+			$display("        Miss rate : %d (flushed) / %d (branch inst) = %f%% \n",flush_times, branch_count, flush_times * 100.0 / branch_count);
+			$display("============================================================================\n");
 			if (error_num) begin 
 				$display("============================================================================");
 				$display("\n (T_T) FAIL!! The simulation result is FAIL!!! there were %d errors at all.\n", error_num);

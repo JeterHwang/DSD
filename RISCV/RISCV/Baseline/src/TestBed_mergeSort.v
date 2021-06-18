@@ -10,6 +10,7 @@ module	TestBed(
 	rst,
 	flush,
 	stall,
+	type,
 	I_addr,
 	addr,
 	data,
@@ -24,6 +25,7 @@ module	TestBed(
 	input			wen;
 	input           flush;
 	input           stall;
+	input           type;
 	input   [29:0]  I_addr;
 
 	output	[7:0]	error_num;
@@ -35,6 +37,7 @@ module	TestBed(
 	reg     [15:0]  instruction_count_r, instruction_count_w;
 	reg     [15:0]  stall_cycles;
 	reg     [15:0]  flush_times;
+	reg     [15:0]  branch_count;
 	reg				finish;
 	reg     [29:0]  prevAddress;
 	reg     [1:0]   curstate, nxtstate;
@@ -58,6 +61,7 @@ module	TestBed(
 		duration 	= 0;
 		flush_times = 0;
 		stall_cycles = 0;
+		branch_count = 0;
 		$readmemh(`golden, sortedArr);
 	end
 
@@ -103,7 +107,9 @@ module	TestBed(
 			stall_cycles = stall_cycles + 1;
 		if(flush)
 			flush_times = flush_times + 1;
-		
+		if(type)
+			branch_count = branch_count + 1;
+
 		if(curstate == state_report) begin
 			$display("--------------------------- Simulation FINISH !!---------------------------");
 			for(i = `Arrbegin; i < `Arrend; i = i + 1) begin
@@ -117,6 +123,7 @@ module	TestBed(
 			$display("\n=========================== Performance Metric =============================\n");
 			$display("Memory stall rate : %d (stalled) / %d (cycles) = %f%% \n", stall_cycles, duration, stall_cycles * 100.0 / duration );
 			$display("       Flush rste : %d (flushed) / %d (instructions) = %f%% \n",flush_times, instruction_count_r, flush_times * 100.0 / instruction_count_r);
+			$display("        Miss rate : %d (flushed) / %d (branch inst) = %f%% \n",flush_times, branch_count, flush_times * 100.0 / branch_count);
 			$display("============================================================================\n");
 			if (error_num) begin 
 				$display("============================================================================");

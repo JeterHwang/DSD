@@ -23,7 +23,8 @@ module CHIP (	clk,
 				DCACHE_wdata,
 				DCACHE_wen,
 				instruction_flush,
-				memory_stall   
+				memory_stall,
+				branchType
 			);
 input			clk, rst_n;
 //--------------------------
@@ -48,6 +49,7 @@ output	[31:0]	DCACHE_wdata;
 output			DCACHE_wen;
 output  		instruction_flush;
 output          memory_stall;
+output          branchType
 //--------------------------
 
 // wire declaration
@@ -92,7 +94,8 @@ assign memory_stall = DCACHE_stall | ICACHE_stall;
 		.DCACHE_wdata   (DCACHE_wdata)  ,
 		.DCACHE_stall   (DCACHE_stall)  ,
 		.DCACHE_rdata   (DCACHE_rdata)  ,
-		.instruction_flush(instruction_flush)
+		.instruction_flush(instruction_flush),
+		.branchType     (branchType)
 	);
 	
 

@@ -3,7 +3,7 @@
 `include "./ALUPipeline/Pipeline_stage3.v"
 `include "./ALUPipeline/Pipeline_stage4.v"
 `include "./ALUPipeline/Pipeline_stage5.v"
-`include "./Cache/1_level.v"
+
 module RISCV_Pipeline(
     input clk,
     input rst_n,
@@ -21,7 +21,8 @@ module RISCV_Pipeline(
     output [31:0] DCACHE_wdata,
     input  DCACHE_stall,
     input  [31:0] DCACHE_rdata,
-    output instruction_flush
+    output instruction_flush,
+    output branchType
 );
 
 // ==== BTB output ==== //
@@ -93,6 +94,8 @@ assign ICACHE_wen   = 1'b0;
 assign ICACHE_wdata = 32'd0;
 assign memory_stall = DCACHE_stall | ICACHE_stall; // either cache stall will stall the whole pipeline
 assign instruction_flush = flush;
+assign branchType = is_branchInst_3;
+
 BTB btb1(
     .clk(clk),
     .rst_n(rst_n),

@@ -35,8 +35,21 @@
 `endif
 `ifdef noBP
 	`include "./ALUPipeline2/RISCV_pipeline.v"
+`elsif lv1hash
+	`include "./ALUPipeline/RISCV_pipeline.v"
+	`include "./Cache/1_level_hash.v"
+`elsif lv1
+	`include "./ALUPipeline/RISCV_pipeline.v"
+	`include "./Cache/1_level.v"
+`elsif lv2glo
+	`include "./ALUPipeline/RISCV_pipeline.v"
+	`include "./Cache/2_level_global.v"
+`elsif lv2loc
+	`include "./ALUPipeline/RISCV_pipeline.v"
+	`include "./Cache/2_level_local.v"
 `else
 	`include "./ALUPipeline/RISCV_pipeline.v"
+	`include "./Cache/1_level.v"
 `endif
 module Final_tb;
 
@@ -67,7 +80,7 @@ module Final_tb;
 	wire finish;	
 	wire instruction_flush;
 	wire memory_stall;
-
+	wire branchType;
 	// Note the design is connected at testbench, include:
 	// 1. CHIP (RISCV + D_cache + I_chache)
 	// 2. slow memory for data
@@ -95,7 +108,8 @@ module Final_tb;
 				DCACHE_wdata,
 				DCACHE_wen,
 				instruction_flush,
-				memory_stall
+				memory_stall,
+				branchType
 				);
 	
 	slow_memory slow_memD(
@@ -118,32 +132,20 @@ module Final_tb;
 		.mem_ready  (mem_ready_I)
 	);
 
-	`ifdef mergesort 
-		TestBed testbed(
-			.clk        (clk)           ,
-			.rst        (rst_n)         ,
-			.flush      (instruction_flush),
-			.stall      (memory_stall)  ,
-			.I_addr     (ICACHE_addr)   ,
-			.addr       (DCACHE_addr)   ,
-			.data       (DCACHE_wdata)  ,
-			.wen        (DCACHE_wen)    ,
-			.error_num  (error_num)     ,
-			.duration   (duration)      ,
-			.finish     (finish)
-		);
-	`else
-		TestBed testbed(
-			.clk        (clk)           ,
-			.rst        (rst_n)         ,
-			.addr       (DCACHE_addr)   ,
-			.data       (DCACHE_wdata)  ,
-			.wen        (DCACHE_wen)    ,
-			.error_num  (error_num)     ,
-			.duration   (duration)      ,
-			.finish     (finish)
-		);
-	`endif
+	TestBed testbed(
+		.clk        (clk)           ,
+		.rst        (rst_n)         ,
+		.flush      (instruction_flush),
+		.stall      (memory_stall)  ,
+		.type       (branchType)    ,
+		.I_addr     (ICACHE_addr)   ,
+		.addr       (DCACHE_addr)   ,
+		.data       (DCACHE_wdata)  ,
+		.wen        (DCACHE_wen)    ,
+		.error_num  (error_num)     ,
+		.duration   (duration)      ,
+		.finish     (finish)        
+	);
 	
 `ifdef SDF
     initial $sdf_annotate(`SDFFILE, chip0);
