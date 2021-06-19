@@ -14,7 +14,7 @@ module BTB(
     output flush,
     output taken
 );
-    parameter setSize = 62; // 1 + 27 + 32 + 2 
+    parameter setSize = 14; // 1 + 3 + 8 + 2 
 
     // BTB cache
     reg [setSize - 1 : 0] btb_r [0:7];
@@ -74,20 +74,20 @@ module BTB(
         for(i = 0; i < 8; i = i + 1) begin
             btb_w[i] = btb_r[i];
         end
-        hit_1       =   btb_r[instructionPC_1[4:2]][61] & 
-                          (btb_r[instructionPC_1[4:2]][60:34] == instructionPC_1[31:5]);
-        hit_3       =   btb_r[instructionPC_3[4:2]][61] & 
-                          (btb_r[instructionPC_3[4:2]][60:34] == instructionPC_3[31:5]);
+        hit_1       =   btb_r[instructionPC_1[4:2]][13] & 
+                          (btb_r[instructionPC_1[4:2]][12:10] == instructionPC_1[7:5]);
+        hit_3       =   btb_r[instructionPC_3[4:2]][13] & 
+                          (btb_r[instructionPC_3[4:2]][12:10] == instructionPC_3[7:5]);
         
-        target_wrong3     = prev_taken_3 & (btb_r[instructionPC_3[4:2]][33:2] != target_3);
+        target_wrong3     = prev_taken_3 & (btb_r[instructionPC_3[4:2]][9:2] != target_3[7:0]);
         taken_wrong3      = is_branchInst_3 & (prev_taken_3 != taken_3);
 
         if(!memory_stall && is_branchInst_3) begin
             if(!hit_3) begin
                 if(taken_3) begin
-                    btb_w[instructionPC_3[4:2]][61]     = 1'b1;
-                    btb_w[instructionPC_3[4:2]][60:34]  = instructionPC_3[31:5];
-                    btb_w[instructionPC_3[4:2]][33:2]   = target_3;
+                    btb_w[instructionPC_3[4:2]][13]     = 1'b1;
+                    btb_w[instructionPC_3[4:2]][12:10]  = instructionPC_3[7:5];
+                    btb_w[instructionPC_3[4:2]][9:2]    = target_3[7:0];
                     btb_w[instructionPC_3[4:2]][1:0]    = 2'b10;     
                 end
             end
@@ -99,7 +99,7 @@ module BTB(
                     btb_w[instructionPC_3[4:2]][1:0]      = history_next;     
                 end
                 else begin
-                    btb_w[instructionPC_3[4:2]][33:2]     = target_3;
+                    btb_w[instructionPC_3[4:2]][9:2]      = target_3[7:0];
                     btb_w[instructionPC_3[4:2]][1:0]      = 2'b10; 
                 end
             end
@@ -117,7 +117,7 @@ module BTB(
         end
         else begin
             if(taken_w)
-                branchPC_w = btb_r[instructionPC_1[4:2]][33:2]; // Predicted taken !!
+                branchPC_w = {24'd0, btb_r[instructionPC_1[4:2]][9:2]}; // Predicted taken !!
             else 
                 branchPC_w = instructionPC_1 + 4; // Predicted NOT Taken !!
             flush_w = 1'b0;
@@ -127,7 +127,7 @@ module BTB(
     always @(posedge clk) begin
         if(!rst_n) begin
             for(i = 0; i < 8; i = i + 1) begin
-                btb_r[i] <= 62'd0;
+                btb_r[i] <= 14'd0;
             end 
         end
         else begin
