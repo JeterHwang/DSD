@@ -1,4 +1,5 @@
 `include "./Cache/cache_2way.v"
+`include "./ALUPipeline/RISCV_pipeline.v"
 module CHIP (	clk,
 				rst_n,
 //----------for slow_memD------------
