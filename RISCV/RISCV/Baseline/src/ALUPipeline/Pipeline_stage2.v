@@ -144,6 +144,7 @@ always @(*) begin
     endcase 
 end
 // ===== decoding ===== //
+
 always @(*) begin
     if(memory_stall) begin
         Rs1_w       = Rs1_r;
@@ -209,6 +210,7 @@ always @(*) begin
 end
 
 // ===== data hazard detection ===== //
+
 always @(*) begin 
     IF_DWrite_w     = instruction_1;
     data_hazard     = 1'b0;
@@ -233,6 +235,60 @@ always @(*) begin
 end
 
 // ===== ALUOp ===== //
+always @(*) begin 
+    if(instruction_1[1]) begin //jal (not have funct 3)
+        ALUOp = ADD;   
+    end
+    else begin
+        case (instruction_1[12:10]) // FUNCT3
+            3'b000: begin
+                if(instruction_1[4:3] == 2'b01) begin// R-type
+                    if(instruction_1[28])   // SUB
+                        ALUOp = SUB;
+                    else                    // ADD
+                        ALUOp = ADD;
+                end
+                else begin
+                    if({instruction_1[4], instruction_1[0]} == 2'b10) //BEQ
+                        ALUOp = SUB;
+                    else                    // I type
+                        ALUOp = ADD;
+                end
+            end    
+            3'b001: begin
+                if(instruction_1[4]) // BNE
+                    ALUOp = SUB;
+                else
+                    ALUOp = SLL;
+            end
+            3'b010: begin
+                if(instruction_1[2])
+                    ALUOp = SLT;
+                else
+                    ALUOp = ADD;
+            end
+            3'b100: begin
+                ALUOp = XOR;
+            end
+            3'b101: begin
+                if(instruction_1[28])
+                    ALUOp = SRA;
+                else
+                    ALUOp = SRL;
+            end
+            3'b110: begin
+                ALUOp = OR;
+            end
+            3'b111: begin
+                ALUOp = AND;
+            end
+            default: begin
+                ALUOp = ADD;
+            end
+        endcase    
+    end
+end
+/*
 always @(*) begin 
     if(instruction_1[1]) begin //jal (not have funct 3)
         ALUOp = ADD;   
@@ -272,7 +328,7 @@ always @(*) begin
         endcase    
     end
 end
-
+*/
 // ===== ALUsrc ===== //
 always @(*) begin
     ALUsrc = (~SB)&(~R);
