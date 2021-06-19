@@ -1,5 +1,3 @@
-// Top module of your design, you cannot modify this module!!
-`include "./ALUPipeline/RISCV_pipeline.v"
 `include "./Cache/cache_2way.v"
 module CHIP (	clk,
 				rst_n,
@@ -49,7 +47,7 @@ output	[31:0]	DCACHE_wdata;
 output			DCACHE_wen;
 output  		instruction_flush;
 output          memory_stall;
-output          branchType; //error 
+output          branchType;
 //--------------------------
 
 // wire declaration
