@@ -63,8 +63,8 @@ reg [31:0] ALU_in2;
 reg [31:0] temp;
 reg [1:0]  forwardA;
 reg [1:0]  forwardB;
-reg [31:0] branch_target;
-reg        branch_taken;
+wire       branch_taken;
+wire[31:0] branch_target;
 
 assign WriteBack_3      = WriteBack_r;
 assign Mem_3            = Mem_r;
@@ -135,33 +135,30 @@ always @(*) begin
             temp = data2;
         end
     endcase
-    
     ALU_in2 = Execution_2[0] ? immediate : temp;
 end
 
 // ===== Branch Information ===== //
-always @(*) begin
-    case (branch_type_2)
-        JAL: begin
-            branch_target   = $signed(PC_2) + $signed(immediate);
-            branch_taken    = 1'b1;
-        end
-        JALR: begin
-            branch_target   = $signed(ALU_in1) + $signed(immediate);
-            branch_taken    = 1'b1;
-        end
-        BEQ: begin
-            branch_target   = (ALU_result_w == 0) ? $signed(PC_2) + $signed(immediate) : $signed(PC_2) + $signed(4);
-            branch_taken    = (ALU_result_w == 0) ? 1'b1 : 1'b0;
-        end
-        BNE: begin
-            branch_target   = (ALU_result_w != 0) ? $signed(PC_2) + $signed(immediate) : $signed(PC_2) + $signed(4);
-            branch_taken    = (ALU_result_w != 0) ? 1'b1 : 1'b0;
-        end
-    endcase
-end
+wire ALU_zero;
+wire opt1;
+wire signed [31:0] src1,src2;
+assign ALU_zero         = ~(|ALU_result_w);
+assign opt1             = branch_type_2[1]&(~ALU_zero^branch_type_2[0]);
+assign src1             = (branch_type_2==JALR)? ALU_in1 : PC_2;
+assign src2             = (opt1)? 4 : immediate ;
+assign branch_target    = src1 + src2;
+assign branch_taken     = (opt1)? 1'b0 : 1'b1;
 
 // ===== ALU control ===== //
+wire jj;
+wire signed [31:0] srcc1,srcc2;
+wire signed [31:0] add,sub;
+assign jj = ~branch_type_2[1];
+assign srcc1 = (jj)?PC_2:ALU_in1;
+assign srcc2 = (jj)?4:ALU_in2;
+assign add   = srcc1 + srcc2;
+assign sub   = $signed(ALU_in1) - $signed(ALU_in2);
+
 always @(*) begin 
     if(memory_stall) begin
         ALU_result_w = ALU_result_r;        
@@ -169,15 +166,10 @@ always @(*) begin
     else begin
         case(Execution_2[4:1])
             ADD: begin
-                if(!branch_type_2[1]) begin // JALR, JAL
-                    ALU_result_w = $signed(PC_2) + $signed(4);
-                end
-                else begin
-                    ALU_result_w = $signed(ALU_in1) + $signed(ALU_in2);
-                end
+                ALU_result_w = add;
             end
             SUB: begin
-                ALU_result_w = $signed(ALU_in1) - $signed(ALU_in2);
+                ALU_result_w = sub;
             end
             AND: begin
                 ALU_result_w = ALU_in1 & ALU_in2;
@@ -198,7 +190,7 @@ always @(*) begin
                 ALU_result_w = $signed(ALU_in1) >>> ALU_in2;
             end
             SLT: begin
-                ALU_result_w = ($signed(ALU_in1) < $signed(ALU_in2)) ? 1 : 0;
+                ALU_result_w = sub[31];
             end
             default: begin
                 ALU_result_w = 32'd0;
@@ -212,7 +204,6 @@ always @(*) begin
     Mem_w           = memory_stall ? Mem_r          : Mem_2;
     WriteBack_w     = memory_stall ? WriteBack_r    : WriteBack_2;
     Rd_w            = memory_stall ? Rd_r           : Rd_2;
-    
     writedata_w     = memory_stall ? writedata_r    : temp;
 end
 

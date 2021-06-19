@@ -3,16 +3,15 @@ module instruction_decode(
     input         rst_n,
     input         memory_stall,
     input         WriteBack_5,
-    input [31:0]  write_data,
-    input [4:0]   write_address, // Rd_5
+    input  [31:0] write_data,
+    input  [4:0]  write_address, // Rd_5
     
-    //input         jj_16, //for RVC jal and jalr
     
     input         prev_taken_1,
     input         flush,
 
-    input [31:0]  instruction_1,
-    input [31:0]  PC_1,
+    input  [29:0] instruction_1,
+    input  [31:0] PC_1,
     
     output [4:0]  Rd_2,
     output [4:0]  Rs1_2,
@@ -30,7 +29,7 @@ module instruction_decode(
     output        WriteBack_2,  // MemtoReg
     output [4:0]  Execution_2,  // Execution_2[3:1] : ALUOp / Execution_2[0] : ALUsrc
     
-    output [31:0] IF_DWrite,
+    output [29:0] IF_DWrite,
     output        PC_write
 
 );
@@ -57,6 +56,7 @@ parameter JALR      = 2'd1;
 parameter BEQ       = 2'd2;
 parameter BNE       = 2'd3;
 
+
 integer i;
 
 reg [31:0] register_r [0:31];
@@ -78,7 +78,7 @@ reg        is_branchInst_r, is_branchInst_w;
 reg [1:0]  branch_type_r, branch_type_w;
 
 // wires
-reg [31:0] IF_DWrite_w;
+reg [29:0] IF_DWrite_w;
 reg        PC_write_w;
 reg [31:0] reg1, reg2;
 
@@ -108,14 +108,24 @@ assign IF_DWrite        = IF_DWrite_w;
 assign PC_write         = PC_write_w;
 
 
+//  ===== opt ===== //
+wire SB,SW,LW,R,I,UJ,JALr;
+assign SB   = instruction_1[4]^instruction_1[0];
+assign SW   = (~instruction_1[4]^instruction_1[2])&instruction_1[3];
+assign LW   = ~(instruction_1[3]|instruction_1[2]);
+assign R    = instruction_1[3]&instruction_1[2];
+assign I    = (~instruction_1[3])&instruction_1[2];
+assign UJ   = instruction_1[1];
+assign JALr = instruction_1[1]^instruction_1[0];
+
 //  ===== instruction type ===== //
 always @(*) begin
-    case(instruction_1[6:5])
+    case(instruction_1[4:3])
         2'b00: begin
             instruction_type = I_type;
         end
         2'b01: begin
-            if(instruction_1[4])
+            if(instruction_1[2])
                 instruction_type = R_type;
             else
                 instruction_type = S_type;
@@ -124,9 +134,9 @@ always @(*) begin
             instruction_type = UNDEFINE;
         end
         2'b11: begin
-            if(instruction_1[3:2] == 2'b00)
+            if(instruction_1[1:0] == 2'b00)
                 instruction_type = SB_type;
-            else if(instruction_1[3:2] == 2'b01)
+            else if(instruction_1[1:0] == 2'b01)
                 instruction_type = I_type;
             else
                 instruction_type = UJ_type;
@@ -141,50 +151,16 @@ always @(*) begin
         Rd_w        = Rd_r;
         immediate_w = immediate_r;
     end
-    else if(flush) begin
-        Rs1_w       = 5'd0;
-        Rs2_w       = 5'd0;
-        Rd_w        = 5'd0;
-        immediate_w = 32'd0;
-    end
     else begin
+        Rs1_w = instruction_1[17:13];
+        Rs2_w = instruction_1[22:18];
+        Rd_w  = instruction_1[9:5];
+        immediate_w = 32'd0;
         case (instruction_type)
-            R_type: begin
-                Rs1_w       = instruction_1[19:15];
-                Rs2_w       = instruction_1[24:20];
-                Rd_w        = instruction_1[11:7];
-                immediate_w = 32'd0;
-            end
-            I_type: begin
-                Rs1_w       = instruction_1[19:15];
-                Rs2_w       = 5'd0;
-                Rd_w        = instruction_1[11:7];
-                immediate_w = {{20{instruction_1[31]}}, instruction_1[31:20]}; // sign extended to 32-bit
-            end
-            S_type: begin
-                Rs1_w       = instruction_1[19:15];
-                Rs2_w       = instruction_1[24:20];
-                Rd_w        = 5'd0;
-                immediate_w = {{20{instruction_1[31]}}, instruction_1[31:25], instruction_1[11:7]}; // sign extended to 32-bit
-            end
-            SB_type: begin
-                Rs1_w       = instruction_1[19:15];
-                Rs2_w       = instruction_1[24:20];
-                Rd_w        = 5'd0;
-                immediate_w = {{19{instruction_1[31]}}, instruction_1[31], instruction_1[7], instruction_1[30:25], instruction_1[11:8], 1'b0}; // sign extended to 32-bit
-            end
-            UJ_type: begin
-                Rs1_w       = 5'd0;
-                Rs2_w       = 5'd0;
-                Rd_w        = instruction_1[11:7];
-                immediate_w = {{11{instruction_1[31]}}, instruction_1[31], instruction_1[19:12], instruction_1[20], instruction_1[30:21], 1'b0};
-            end
-            default: begin
-                Rs1_w       = 5'd0;
-                Rs2_w       = 5'd0;
-                Rd_w        = 5'd0;
-                immediate_w = 5'd0;
-            end
+            I_type: immediate_w = {{20{instruction_1[29]}}, instruction_1[29:18]}; // sign extended to 32-bit
+            S_type: immediate_w = {{20{instruction_1[29]}}, instruction_1[29:23], instruction_1[9:5]}; // sign extended to 32-bit
+            SB_type:immediate_w = {{20{instruction_1[29]}}, instruction_1[5], instruction_1[28:23], instruction_1[9:6], 1'b0}; // sign extended to 32-bit
+            UJ_type:immediate_w = {{12{instruction_1[29]}}, instruction_1[17:10], instruction_1[18], instruction_1[28:19], 1'b0};
         endcase    
     end
 end
@@ -200,187 +176,92 @@ always @(*) begin
     reg1 = register_w[Rs1_w];
     reg2 = register_w[Rs2_w];
 
-    if(memory_stall) begin
-        data1_w = data1_r;
-    end
-    else if(flush) begin
-        data1_w = 32'd0;
-    end
-    else begin
-        data1_w = reg1;
-    end
+    if(~memory_stall&(flush|data_hazard)) data1_w = 32'd0;
+    else data1_w = reg1;
     // ---------------------------------------------------------
-    if(memory_stall) begin
-        data2_w = data2_r;    
-    end
-    else if(flush) begin
-        data2_w = 32'd0;
-    end
-    else begin
-        data2_w = reg2;
-    end
+    if(~memory_stall&(flush|data_hazard)) data2_w = 32'd0;
+    else data2_w = reg2;
 end
 
 // ===== Branch Information ===== //
 always @(*) begin
-    if(memory_stall) begin
-        PC_w        = PC_r;
-        taken_w     = taken_r;
-    end
-    else if(flush) begin
-        PC_w        = 32'd0;
-        taken_w     = 1'b0;
-    end
-    else begin
-        PC_w        = PC_1; 
-        taken_w     = prev_taken_1;
-    end
-    
-    
-    if(memory_stall) begin
-        is_branchInst_w = is_branchInst_r;
-    end
-    else if(flush) begin
-        is_branchInst_w = 1'b0;
-    end
-    else begin
-        if(instruction_1[6:5] == 2'b11) begin // BNE, BEQ, JALR, JAL
-            is_branchInst_w = 1'b1;
-        end
-        else begin
-            is_branchInst_w = 1'b0;
-        end    
-    end
-    
-    if(memory_stall) begin
+    PC_w = (memory_stall) ? PC_r : PC_1;
+    is_branchInst_w = (memory_stall) ? is_branchInst_r : instruction_1[4]&(~flush);
+    //taken_w
+    if(memory_stall) taken_w     = taken_r;
+    else if(flush)   taken_w     = 1'b0;
+    else             taken_w     = prev_taken_1;
+
+    if(memory_stall | flush) begin
         branch_type_w = branch_type_r;    
     end
-    else if(flush) begin
-        branch_type_w = BNE;    // default type !!
-    end
     else begin
-        if(instruction_1[6:5] == 2'b11) begin // BNE, BEQ, JALR, JAL
-            case (instruction_1[3:2])
-                2'b00: begin
-                    if(instruction_1[12])
-                        branch_type_w = BNE;
-                    else
-                        branch_type_w = BEQ;
-                end
-                2'b01: begin
-                    branch_type_w = JALR;
-                end
-                2'b11: begin
-                    branch_type_w = JAL;
-                end
-                default: begin
-                    branch_type_w = BNE; // meaningless !!
-                end
-            endcase
-        end
-        else begin
-            branch_type_w = BNE;
-        end    
-    end
-    
+        case (instruction_1[1:0])
+            2'b00: begin
+                if(instruction_1[10]) branch_type_w = BNE;
+                else branch_type_w = BEQ;
+            end
+            2'b01:   branch_type_w = JALR;
+            2'b11:   branch_type_w = JAL;
+            default: branch_type_w = BNE; // meaningless !!
+        endcase
+    end 
 end
 
 // ===== data hazard detection ===== //
 always @(*) begin 
-    IF_DWrite_w         = instruction_1;
-    
-    if(Mem_r[1]) begin  // load-use hazard
-        if(Rd_r == Rs1_w || Rd_r == Rs2_w) begin
-            data_hazard     = 1'b1;
-            PC_write_w      = 1'b1;    
-        end
-        else begin
-            data_hazard     = 1'b0;
-            PC_write_w      = 1'b0;    
-        end
-    end
-    else begin
-        data_hazard     = 1'b0;
-        PC_write_w      = 1'b0;
+    IF_DWrite_w     = instruction_1;
+    data_hazard     = 1'b0;
+    PC_write_w      = 1'b0;  
+    if(Rd_r == Rs1_w || Rd_r == Rs2_w) begin
+        data_hazard = Mem_r[1];
+        PC_write_w  = Mem_r[1];    
     end
 end
 
 // ===== control ===== //
 always @(*) begin
-    if(memory_stall)
-        Execution_w = Execution_r;    
-    else if(flush)
-        Execution_w = {ADD, 1'b1}; // addi x0 x0 0
-    else
-        Execution_w = ({ALUOp, ALUsrc} & {5{~data_hazard}});
+    if(memory_stall) Execution_w = Execution_r;    
+    else Execution_w = {ALUOp, ALUsrc};
+
+    if(memory_stall) Mem_w = Mem_r;
+    else if(flush)   Mem_w = 2'b00;
+    else             Mem_w = ({LW,SW})&{2{~data_hazard}};
     
-    if(memory_stall) begin
-        Mem_w = Mem_r;
-    end
-    else if(flush) begin
-        Mem_w = 2'b00;
-    end
-    else begin
-        if(instruction_1[6:4] == 3'b000) // lw
-            Mem_w = 2'b10 & {2{~data_hazard}};
-        else if(instruction_1[6:4] == 3'b010) // sw
-            Mem_w = 2'b01 & {2{~data_hazard}};
-        else
-            Mem_w = 2'b00 & {2{~data_hazard}};    
-    end
-    
-    if(memory_stall) begin
-        WriteBack_w = WriteBack_r;
-    end
-    else if(flush) begin
-        WriteBack_w = 1'b0;
-    end
-    else begin
-        if(instruction_type[1]) // SB_type, S_type
-            WriteBack_w = 1'b0 & (~data_hazard);
-        else
-            WriteBack_w = 1'b1 & (~data_hazard);    
-    end
+    if(memory_stall) WriteBack_w = WriteBack_r;
+    else WriteBack_w = (~flush)&(~SB)&(~SW)&(~data_hazard);    
 end
 
 // ===== ALUOp ===== //
 always @(*) begin 
-    if(instruction_1[3]) begin //jal (not have funct 3)
+    if(instruction_1[1]) begin //jal (not have funct 3)
         ALUOp = ADD;   
     end
     else begin
-        case (instruction_1[14:12]) // FUNCT3
+        ALUOp = ADD;
+        case (instruction_1[12:10]) // FUNCT3
             3'b000: begin
-                if(instruction_1[6:5] == 2'b01) begin// R-type
-                    if(instruction_1[30])   // SUB
+                if(R) begin// R-type
+                    if(instruction_1[28])   // SUB
                         ALUOp = SUB;
-                    else                    // ADD
-                        ALUOp = ADD;
                 end
                 else begin
-                    if({instruction_1[6], instruction_1[2]} == 2'b10) //BEQ
+                    if(instruction_1[4]&(~instruction_1[0])) //BEQ
                         ALUOp = SUB;
-                    else                    // I type
-                        ALUOp = ADD;
                 end
             end    
             3'b001: begin
-                if(instruction_1[6]) // BNE
+                if(instruction_1[4]) // BNE
                     ALUOp = SUB;
                 else
                     ALUOp = SLL;
             end
             3'b010: begin
-                if(instruction_1[4])
-                    ALUOp = SLT;
-                else
-                    ALUOp = ADD;
+                if(instruction_1[2]) ALUOp = SLT;
             end
-            3'b100: begin
-                ALUOp = XOR;
-            end
+            3'b100: ALUOp = XOR;
             3'b101: begin
-                if(instruction_1[30])
+                if(instruction_1[28])
                     ALUOp = SRA;
                 else
                     ALUOp = SRL;
@@ -388,24 +269,13 @@ always @(*) begin
             3'b110: begin
                 ALUOp = OR;
             end
-            3'b111: begin
-                ALUOp = AND;
-            end
-            default: begin
-                ALUOp = ADD;
-            end
         endcase    
     end
 end
 
 // ===== ALUsrc ===== //
 always @(*) begin
-    if(instruction_type == R_type || instruction_type == SB_type) begin
-        ALUsrc = 1'b0;
-    end
-    else begin
-        ALUsrc = 1'b1;
-    end
+    ALUsrc = (~SB)&(~R);
 end
 
 always @(posedge clk) begin

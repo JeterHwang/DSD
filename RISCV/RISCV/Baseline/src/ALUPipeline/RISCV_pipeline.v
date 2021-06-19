@@ -41,7 +41,7 @@ wire [31:0] instruction_in;
 wire        memory_stall; 
 // output
 wire [31:0] PC_1;
-wire [31:0] instruction_1;
+wire [29:0] instruction_1;
 wire        prev_taken_1;
 // ====================//
 
@@ -60,7 +60,7 @@ wire        prev_taken_2;
 wire [1:0]  Mem_2;
 wire        WriteBack_2;
 wire [4:0]  Execution_2;
-wire [31:0] IF_DWrite;
+wire [29:0] IF_DWrite;
 wire        PC_write;
 // ==================== //
 
