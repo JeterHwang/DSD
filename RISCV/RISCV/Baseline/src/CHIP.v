@@ -49,7 +49,7 @@ output	[31:0]	DCACHE_wdata;
 output			DCACHE_wen;
 output  		instruction_flush;
 output          memory_stall;
-output          branchType
+output          branchType; //error 
 //--------------------------
 
 // wire declaration
