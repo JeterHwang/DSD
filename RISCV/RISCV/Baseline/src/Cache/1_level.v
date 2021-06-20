@@ -19,7 +19,12 @@ module BTB(
     // BTB cache
     reg [setSize - 1 : 0] btb_r [0:7];
     reg [setSize - 1 : 0] btb_w [0:7];
-    
+    reg hit_3_r, taken_3_r, target_wrong3_r, is_branchInst_3_r, mem_stall_r;
+    reg [1:0] history_next_r;
+    reg [2:0] index_r;
+    reg [2:0] tag_r;
+    reg [5:0] content_r;
+
     // Wires 
     reg hit_3;
     reg hit_1;
@@ -82,25 +87,25 @@ module BTB(
         target_wrong3     = prev_taken_3 & (btb_r[instructionPC_3[4:2]][7:2] != target_3[7:2]);
         taken_wrong3      = is_branchInst_3 & (prev_taken_3 != taken_3);
 
-        if(!memory_stall && is_branchInst_3) begin
-            if(!hit_3) begin
-                if(taken_3) begin
-                    btb_w[instructionPC_3[4:2]][11]     = 1'b1;
-                    btb_w[instructionPC_3[4:2]][10:8]   = instructionPC_3[7:5];
-                    btb_w[instructionPC_3[4:2]][7:2]    = target_3[7:2];
-                    btb_w[instructionPC_3[4:2]][1:0]    = 2'b10;     
+        if(!mem_stall_r && is_branchInst_3_r) begin
+            if(!hit_3_r) begin
+                if(taken_3_r) begin
+                    btb_w[index_r][11]     = 1'b1;
+                    btb_w[index_r][10:8]   = tag_r;
+                    btb_w[index_r][7:2]    = content_r;
+                    btb_w[index_r][1:0]    = 2'b10;     
                 end
             end
             else begin
                 //btb_w[instructionPC_3[2:0]][62]     = 1'b1;
                 //btb_w[instructionPC_3[2:0]][61:33]  = instructionPC_3[31:3];
                 
-                if(!target_wrong3) begin // target correct !!
-                    btb_w[instructionPC_3[4:2]][1:0]      = history_next;     
+                if(!target_wrong3_r) begin // target correct !!
+                    btb_w[index_r][1:0]      = history_next_r;     
                 end
                 else begin
-                    btb_w[instructionPC_3[4:2]][7:2]      = target_3[7:2];
-                    btb_w[instructionPC_3[4:2]][1:0]      = 2'b10; 
+                    btb_w[index_r][7:2]      = content_r;
+                    btb_w[index_r][1:0]      = 2'b10; 
                 end
             end
         end        
@@ -129,11 +134,29 @@ module BTB(
             for(i = 0; i < 8; i = i + 1) begin
                 btb_r[i] <= 14'd0;
             end 
+            hit_3_r         <= 1'b0;
+            taken_3_r       <= 1'b0;
+            target_wrong3_r <= 1'b0; 
+            is_branchInst_3_r <= 1'b0;
+            mem_stall_r     <= 1'b0;
+            history_next_r  <= 2'd0;
+            index_r         <= 3'd0;
+            tag_r           <= 3'd0;
+            content_r       <= 6'd0;
         end
         else begin
             for(i = 0; i < 8; i = i + 1) begin
                 btb_r[i] <= btb_w[i];
             end 
+            hit_3_r         <= hit_3;
+            taken_3_r       <= taken_3;
+            target_wrong3_r <= target_wrong3; 
+            is_branchInst_3_r <= is_branchInst_3;
+            mem_stall_r     <= memory_stall;
+            history_next_r  <= history_next;
+            index_r         <= instructionPC_3[4:2];
+            tag_r           <= instructionPC_3[7:5];
+            content_r       <= target_3[7:2];
         end
     end
 
