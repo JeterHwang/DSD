@@ -1,6 +1,8 @@
 // Top module of your design, you cannot modify this module!!
 `include "./ALUPipeline/RISCV_pipeline.v"
 `include "./Cache/cache_2way.v"
+`include "./Cache/Icache.v"
+`include "./Cache/Dcache.v"
 module CHIP (	clk,
 				rst_n,
 //----------for slow_memD------------
@@ -88,7 +90,7 @@ wire [31:0] DCACHE_rdata;
 	);
 	
 
-	cache D_cache(
+	Dcache D_cache(
         .clk        (clk)         ,
         .proc_reset (~rst_n)      ,
         .proc_read  (DCACHE_ren)  ,
@@ -105,7 +107,7 @@ wire [31:0] DCACHE_rdata;
         .mem_ready  (mem_ready_D)
 	);
 
-	cache I_cache(
+	Icache I_cache(
         .clk        (clk)         ,
         .proc_reset (~rst_n)      ,
         .proc_read  (ICACHE_ren)  ,
