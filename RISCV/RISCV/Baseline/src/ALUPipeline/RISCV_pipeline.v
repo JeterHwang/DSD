@@ -97,7 +97,7 @@ BTB btb1(
     .clk(clk),
     .rst_n(rst_n),
     .memory_stall(memory_stall),
-    .instructionPC_1_w(instructionPC_1_w),
+    .instruction_out_w(instruction_out_w),
     .instructionPC_1(instructionPC_1),
     .branchPC(branchPC),
     .flush(flush),
