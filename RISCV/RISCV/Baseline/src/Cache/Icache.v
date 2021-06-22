@@ -70,7 +70,6 @@ module Icache(
     reg [1:0]   block_id;
     reg [1:0]   block_offset;
     reg         hit_index;
-    reg         valid;
     reg         hit0, hit1;
     reg         hit;
 
@@ -94,7 +93,6 @@ always @(*) begin
     hit1            = valid_r[block_id][1] & (tag_r[block_id][2 * tagSize - 1 -: tagSize] == tag_field);
     hit             = hit0 | hit1;
     hit_index       = hit0 ? 1'b0 : 1'b1;
-    valid           = (used_r[block_id][0])?valid_r[block_id][1]:valid_r[block_id][0];
     
     proc_rdata_w    = proc_rdata_r;
     for(i = 0; i < set; i = i + 1) begin
@@ -202,12 +200,8 @@ always @(*) begin
     state_w = state_r;
     case (state_r)
         S_IDLE: begin
-            if(proc_read) begin
-                if(hit) //  read/write hit !!
-                    state_w      = S_IDLE;
-                else begin
-                    state_w             = S_ALLOCATE;
-                end
+            if(proc_read && !hit) begin
+                state_w     = S_ALLOCATE;
             end
             else begin
                 state_w     = S_IDLE;  
@@ -226,11 +220,8 @@ always @(*) begin
     proc_stall_w = proc_stall_r;
     case (state_r)
         S_IDLE: begin
-            if(proc_read) begin
-                if(hit) //  read/write hit !!
-                    proc_stall_w    = 1'b0;
-                else 
-                    proc_stall_w    = 1'b1;
+            if(proc_read && !hit) begin
+                proc_stall_w    = 1'b1;
             end
             else begin
                 proc_stall_w    = 1'b0;
