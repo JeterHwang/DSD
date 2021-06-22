@@ -33,7 +33,7 @@ module Icache(
     
 //==== paramterers ================================
     parameter blockSize     = 4 * 32;
-    parameter tagSize       = 26;
+    parameter tagSize       = 6;
     parameter validSize     = 1;
     parameter set           = 4;
     parameter way           = 2;
@@ -66,7 +66,7 @@ module Icache(
     integer i;
 
     // ===== wires =====
-    reg [25:0]  tag_field;
+    reg [5:0]  tag_field;
     reg [1:0]   block_id;
     reg [1:0]   block_offset;
     reg         hit_index;
@@ -78,7 +78,7 @@ module Icache(
 
     assign mem_read     = mem_read_w;
     assign mem_write    = 1'b0;
-    assign mem_addr     = mem_addr_w;
+    assign mem_addr     = {20'd0, mem_addr_w[7:0]};
 
     assign proc_stall   = proc_stall_w;
     assign proc_rdata   = proc_rdata_w;  
@@ -86,11 +86,11 @@ module Icache(
 
 //==== combinational circuit ==============================
 always @(*) begin
-    tag_field       = proc_addr[29:4];
+    tag_field       = {20'd0, proc_addr[9:4]};
     block_id        = proc_addr[3:2];
     block_offset    = proc_addr[1:0];
-    hit0            = valid_r[block_id][0] & (tag_r[block_id][tagSize - 1 -: tagSize] == tag_field);
-    hit1            = valid_r[block_id][1] & (tag_r[block_id][2 * tagSize - 1 -: tagSize] == tag_field);
+    hit0            = valid_r[block_id][0] & (tag_r[block_id][5:0] == tag_field);
+    hit1            = valid_r[block_id][1] & (tag_r[block_id][11:6] == tag_field);
     hit             = hit0 | hit1;
     hit_index       = hit0 ? 1'b0 : 1'b1;
     
@@ -158,11 +158,11 @@ always @(*) begin
             if(mem_ready_buf) begin
                 if(used_r[block_id][0]) begin
                     valid_w[block_id][1]   = 1'b1;
-                    tag_w[block_id][2 * tagSize - 1 -: tagSize] = tag_field;  
+                    tag_w[block_id][11:6] = tag_field;  
                 end
                 else begin
                     valid_w[block_id][0]   = 1'b1;
-                    tag_w[block_id][1 * tagSize - 1 -: tagSize] = tag_field;
+                    tag_w[block_id][5:0] = tag_field;
                 end
             end
         end
@@ -176,21 +176,21 @@ always @(*) begin
         S_IDLE: begin
             if(proc_read && !hit) begin
                 mem_read_w          = 1'b1;
-                mem_addr_w          = proc_addr[29:2];
+                mem_addr_w          = {20'd0, proc_addr[9:2]};
             end
             else begin
                 mem_read_w          = 1'b0;
-                mem_addr_w          = mem_addr_r;
+                mem_addr_w          = {20'd0, mem_addr_r[7:0]};
             end
         end
         S_ALLOCATE: begin
             if(mem_ready_buf) begin
                 mem_read_w          = 1'b0;
-                mem_addr_w          = mem_addr_r;
+                mem_addr_w          = {20'd0, mem_addr_r[7:0]};
             end
             else begin
                 mem_read_w          = 1'b1;
-                mem_addr_w          = mem_addr_r;
+                mem_addr_w          = {20'd0, mem_addr_r[7:0]};
             end
         end
     endcase
@@ -241,7 +241,7 @@ always@( posedge clk ) begin
     if( proc_reset ) begin
         for(i = 0; i < set; i = i + 1) begin
             store_r[i]  <= {way{128'd0}};
-            tag_r[i]    <= {way{26'd0}};
+            tag_r[i]    <= {way{6'd0}};
             valid_r[i]  <= {way{1'b0}};
             used_r[i]   <= {way{1'b0}};
         end
