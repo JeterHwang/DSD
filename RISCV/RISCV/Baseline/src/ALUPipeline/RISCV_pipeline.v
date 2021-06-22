@@ -28,11 +28,11 @@ wire [31:0] instructionPC_1;
 wire        flush;
 wire        taken;
 wire [31:0] branchPC;
-wire [31:0] instructionPC_3;
+wire [7:0]  instructionPC_3;
 wire        is_branchInst_3;
 wire        taken_3;
 wire        prev_taken_3;
-wire [31:0] target_3;
+wire [7:0]  target_3;
 // ==================== //
 
 // ==== L1 signals ==== //
@@ -40,8 +40,9 @@ wire [31:0] target_3;
 wire [31:0] instruction_in;
 wire        memory_stall; 
 // output
-wire [31:0] PC_1;
+wire [7:0]  PC_1;
 wire [29:0] instruction_1;
+wire [29:0] instruction_1_w;
 wire        prev_taken_1;
 // ====================//
 
@@ -55,7 +56,7 @@ wire [31:0] data2;
 wire [31:0] immediate;
 wire        is_branchInst_2;
 wire [1:0]  branch_type_2;
-wire [31:0] PC_2;
+wire [7:0]  PC_2;
 wire        prev_taken_2;
 wire [1:0]  Mem_2;
 wire        WriteBack_2;
@@ -121,6 +122,7 @@ instruction_fetch stage1(
     .I_ren(ICACHE_ren),
     .PC_1(PC_1),
     .instruction_1(instruction_1),
+    .instruction_1_w(instruction_1_w),
     .prev_taken_1(prev_taken_1),
     .instructionPC_1(instructionPC_1)
 );

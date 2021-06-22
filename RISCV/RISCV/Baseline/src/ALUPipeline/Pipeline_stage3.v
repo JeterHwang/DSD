@@ -11,7 +11,7 @@ module Execution(
     
     input         is_branchInst_2,
     input [1:0]   branch_type_2,
-    input [31:0]  PC_2,
+    input [7:0]   PC_2,
     input         prev_taken_2,
     
     input         WriteBack_2,
@@ -28,8 +28,8 @@ module Execution(
     output [31:0] writedata_3, // memory write data
     output [4:0]  Rd_3,
 
-    output [31:0] target_3,
-    output [31:0] instructionPC_3,
+    output [7:0]  target_3,
+    output [7:0]  instructionPC_3,
     output        is_branchInst_3,
     output        taken_3,
     output        prev_taken_3
@@ -64,7 +64,7 @@ reg [31:0] temp;
 reg [1:0]  forwardA;
 reg [1:0]  forwardB;
 wire       branch_taken;
-wire[31:0] branch_target;
+wire[7:0]  branch_target;
 
 assign WriteBack_3      = WriteBack_r;
 assign Mem_3            = Mem_r;
@@ -141,24 +141,28 @@ end
 // ===== Branch Information ===== //
 wire ALU_zero;
 wire opt1;
-wire signed [31:0] src1,src2;
-assign ALU_zero         = ~(|ALU_result_w);
+wire [7:0] src1,src2;
+assign ALU_zero         = ~(|ALU_result_w[5:0]);
 assign opt1             = branch_type_2[1]&(~ALU_zero^branch_type_2[0]);
-assign src1             = (branch_type_2==JALR)? ALU_in1 : PC_2;
-assign src2             = (opt1)? 4 : immediate ;
+assign src1             = (branch_type_2==JALR)? ALU_in1[7:0] : PC_2[7:0];
+assign src2             = (opt1)? 8'd4 : immediate[7:0] ;
 assign branch_target    = src1 + src2;
-assign branch_taken     = (opt1)? 1'b0 : 1'b1;
+assign branch_taken     = ~opt1;
 
 // ===== ALU control ===== //
 wire jj;
-wire signed [31:0] srcc1,srcc2;
-wire signed [31:0] add,sub;
+wire [10:0] srcc1,srcc2;
+wire [10:0] sub;
+wire [10:0] add;
 assign jj = ~branch_type_2[1];
-assign srcc1 = (jj)?PC_2:ALU_in1;
-assign srcc2 = (jj)?4:ALU_in2;
+assign srcc1 = (jj)?{3'b0,PC_2}:ALU_in1[10:0];
+assign srcc2 = (jj)?11'd4:ALU_in2[10:0];
 assign add   = srcc1 + srcc2;
-assign sub   = $signed(ALU_in1) - $signed(ALU_in2);
+assign sub   = ALU_in1[10:0] - ALU_in2[10:0];
 
+//opt
+//wire [1:0] optand;
+//assign optand = ALU_in1[1:0] & ALU_in2[1:0];
 always @(*) begin 
     if(memory_stall) begin
         ALU_result_w = ALU_result_r;        
@@ -166,13 +170,13 @@ always @(*) begin
     else begin
         case(Execution_2[4:1])
             ADD: begin
-                ALU_result_w = add;
+                ALU_result_w = {{21{add[10]}},add};//add;//{{19{add[12]}},add};
             end
             SUB: begin
-                ALU_result_w = sub;
+                ALU_result_w = {{21{sub[10]}},sub};
             end
             AND: begin
-                ALU_result_w = ALU_in1 & ALU_in2;
+                ALU_result_w = ALU_in1 & ALU_in2;//{30'b0,optand};
             end
             OR: begin
                 ALU_result_w = ALU_in1 | ALU_in2;
@@ -190,7 +194,7 @@ always @(*) begin
                 ALU_result_w = $signed(ALU_in1) >>> ALU_in2;
             end
             SLT: begin
-                ALU_result_w = sub[31];
+                ALU_result_w = sub[10];
             end
             default: begin
                 ALU_result_w = 32'd0;
@@ -224,3 +228,4 @@ always @(posedge clk) begin
     end
 end
 endmodule
+

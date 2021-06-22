@@ -14,8 +14,9 @@ module instruction_fetch(
     output [29:0] I_addr,       
     output        I_ren,         
     
-    output [31:0] PC_1,
+    output [7:0]  PC_1,
     output [29:0] instruction_1, 
+    output [29:0] instruction_1_w, 
     
     output        prev_taken_1,
     output [31:0] instructionPC_1
@@ -23,7 +24,7 @@ module instruction_fetch(
 
 // regs
 reg [31:0] PC_r, PC_w;
-reg [31:0] PC_out_r, PC_out_w;
+reg [7:0]  PC_out_r, PC_out_w;
 reg [29:0] instruction_out_r, instruction_out_w;
 reg        taken_r, taken_w;
 
@@ -35,6 +36,7 @@ wire[29:0] instruction; //real output instruction
 
 assign PC_1                 = PC_out_r;
 assign instruction_1        = instruction_out_r;
+assign instruction_1_w      = instruction_out_w;
 assign I_addr               = I_addr_w;
 assign I_ren                = I_ren_w;
 assign instruction_little   = {instruction_in[7:0],instruction_in[15:8],instruction_in[23:16],instruction_in[31:24]}; //instruction with little_end
@@ -61,8 +63,8 @@ end
 
 // ===== PC_out ===== //
 always @(*) begin
-    if(opt2)          PC_out_w = PC_out_r;
-    else              PC_out_w = PC_r;
+    if(opt2) PC_out_w = PC_out_r;
+    else     PC_out_w = PC_r[7:0];
 end
 
 // ===== instruction_out ===== //
@@ -81,7 +83,7 @@ end
 always @(posedge clk) begin
     if(!rst_n) begin
         PC_r                <= 32'd0;
-        PC_out_r            <= 32'd0;
+        PC_out_r            <= 8'd0;
         instruction_out_r   <= 30'd0;
         taken_r             <= 1'b0;
     end
