@@ -82,7 +82,7 @@ module BTB(
                 if(hit_1)
                     branchPC_w = {24'd0, btb_r[instructionPC_1[4:2]][5:0], 2'd0};
                 else
-                    branchPC_w = 32'd0;
+                    branchPC_w = instructionPC_1 + 4;
             end
             else 
                 branchPC_w = instructionPC_1 + 4;
