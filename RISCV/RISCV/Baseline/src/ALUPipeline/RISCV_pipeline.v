@@ -97,6 +97,7 @@ BTB btb1(
     .clk(clk),
     .rst_n(rst_n),
     .memory_stall(memory_stall),
+    .instructionPC_1_w(instructionPC_1_w),
     .instructionPC_1(instructionPC_1),
     .branchPC(branchPC),
     .flush(flush),
@@ -107,6 +108,7 @@ BTB btb1(
     .prev_taken_3(prev_taken_3),
     .target_3(target_3)
 );
+
 
 instruction_fetch stage1(
     .clk(clk),
