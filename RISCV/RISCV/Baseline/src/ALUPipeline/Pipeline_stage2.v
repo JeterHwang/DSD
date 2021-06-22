@@ -168,9 +168,7 @@ end
 
 // ===== registers ===== //
 always @(*) begin 
-    for(i = 26; i < 32; i = i + 1)
-        register_w[i] = 32'b0;
-    for(i = 0; i < 25; i = i + 1)
+    for(i = 0; i < 32; i = i + 1)
         register_w[i] = register_r[i];
     
     if(!memory_stall && write_address != 0 && WriteBack_5)
@@ -315,10 +313,8 @@ always @(posedge clk) begin
         branch_type_r       <= 2'b00;
     end
     else begin
-        for(i = 0; i < 25; i = i + 1)
+        for(i = 0; i < 32; i = i + 1)
             register_r[i]   <= register_w[i];
-        for(i = 26; i < 32; i = i + 1)
-            register_w[i] <= 32'b0;
         Rd_r                <= Rd_w;
         Rs1_r               <= Rs1_w;
         Rs2_r               <= Rs2_w;
