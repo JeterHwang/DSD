@@ -89,7 +89,6 @@ always @(*) begin
     proc_rdata_w    = proc_rdata_r;
     for(i = 0; i < set; i = i + 1) begin
         store_w[i] = store_r[i];
-        used_w[i] = used_r[i];
     end
         
     case (state_r)
@@ -208,7 +207,6 @@ always@( posedge clk ) begin
             store_r[i]  <= {way{128'd0}};
             tag_r[i]    <= {way{5'd0}};
             valid_r[i]  <= {way{1'b0}};
-            used_r[i]   <= {way{1'b0}};
         end
         state_r         <= S_IDLE;
         mem_read_r      <= 1'b0;
@@ -222,7 +220,6 @@ always@( posedge clk ) begin
             store_r[i]  <= store_w[i];
             tag_r[i]    <= tag_w[i];
             valid_r[i]  <= valid_w[i];
-            used_r[i]   <= used_w[i];
         end
         state_r         <= state_w;
         mem_read_r      <= mem_read_w;

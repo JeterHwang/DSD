@@ -55,9 +55,6 @@ module cache(
     reg valid_r [0 : set - 1];
     reg valid_w [0 : set - 1];
 
-    reg used_r [0 : set - 1];
-    reg used_w [0 : set - 1];
-
     reg [tagSize * way - 1 : 0]  tag_r [0 : set - 1];
     reg [tagSize * way - 1 : 0]  tag_w [0 : set - 1];
 
@@ -101,7 +98,6 @@ always @(*) begin
     proc_rdata_w    = proc_rdata_r;
     for(i = 0; i < set; i = i + 1) begin
         store_w[i] = store_r[i];
-        used_w[i] = used_r[i];
     end
         
     case (state_r)
@@ -317,7 +313,6 @@ always@( posedge clk ) begin
             tag_r[i]    <= {way{5'd0}};
             valid_r[i]  <= {way{1'b0}};
             dirty_r[i]  <= {way{1'b0}};
-            used_r[i]   <= {way{1'b0}};
         end
         state_r         <= S_IDLE;
         mem_read_r      <= 1'b0;
@@ -334,7 +329,6 @@ always@( posedge clk ) begin
             tag_r[i]    <= tag_w[i];
             valid_r[i]  <= valid_w[i];
             dirty_r[i]  <= dirty_w[i];
-            used_r[i]   <= used_w[i];
         end
         state_r         <= state_w;
         mem_read_r      <= mem_read_w;
