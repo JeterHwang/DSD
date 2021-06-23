@@ -1,4 +1,4 @@
-module cache(
+module Icache(
     clk,
     proc_reset,
     proc_read,
