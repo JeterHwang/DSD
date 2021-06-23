@@ -33,6 +33,7 @@ module BTB(
     reg flush_w;
     reg taken_w;
     reg [31:0] branchPC_w;
+    reg [5:0] PC_4;
     
     integer i;
 
@@ -72,7 +73,7 @@ module BTB(
         else begin
             taken_w = 1'b0;
         end    
-        
+        PC_4 = instructionPC_1[7:2] + 1;
         if(is_branchInst_3 && (taken_wrong3 || target_wrong3)) begin // Previous branch taken wrong 
             branchPC_w  = target_3; // new PC
             flush_w     = 1'b1;
@@ -82,10 +83,10 @@ module BTB(
                 if(hit_1)
                     branchPC_w = {24'd0, btb_r[instructionPC_1[4:2]][5:0], 2'd0};
                 else
-                    branchPC_w = instructionPC_1 + 4;
+                    branchPC_w = {24'd0, PC_4, 2'd0};
             end
             else 
-                branchPC_w = instructionPC_1 + 4;
+                branchPC_w = {24'd0, PC_4, 2'd0};
             flush_w = 1'b0;
         end
     end
